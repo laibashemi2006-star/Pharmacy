@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel Auditor — Pharmacy Expiry Management</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blue-900: #0a1628;
+    --blue-800: #0d2044;
+    --blue-700: #0f3460;
+    --blue-600: #1565c0;
+    --blue-500: #1976d2;
+    --blue-400: #42a5f5;
+    --blue-300: #90caf9;
+    --blue-100: #e3f2fd;
+    --blue-50:  #f0f8ff;
+    --white: #ffffff;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-400: #94a3b8;
+    --gray-600: #475569;
+    --gray-800: #1e293b;
+    --expired: #c62828;
+    --expired-bg: #ffebee;
+    --expired-border: #ef9a9a;
+    --critical: #e65100;
+    --critical-bg: #fff3e0;
+    --critical-border: #ffcc80;
+    --warning: #f9a825;
+    --warning-bg: #fffde7;
+    --warning-border: #fff176;
+    --safe: #2e7d32;
+    --safe-bg: #e8f5e9;
+    --safe-border: #a5d6a7;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 16px rgba(13,32,68,0.10);
+    --shadow-lg: 0 8px 32px rgba(13,32,68,0.15);
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-800);
+    min-height: 100vh;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    position: fixed; top: 0; left: 0;
+    width: 240px; height: 100vh;
+    background: var(--blue-800);
+    display: flex; flex-direction: column;
+    z-index: 100;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.18);
+  }
+
+  .sidebar-logo {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: var(--blue-400);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px;
+    font-size: 20px;
+  }
+
+  .logo-text {
+    color: var(--white);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    line-height: 1.2;
+  }
+
+  .logo-sub {
+    color: var(--blue-300);
+    font-size: 11px;
+    font-weight: 400;
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 14px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--blue-300);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.18s;
+    border: none; background: none; width: 100%; text-align: left;
+  }
+
+  .nav-item:hover {
+    background: rgba(255,255,255,0.07);
+    color: var(--white);
+  }
+
+  .nav-item.active {
+    background: var(--blue-600);
+    color: var(--white);
+    box-shadow: 0 2px 8px rgba(21,101,192,0.4);
+  }
+
+  .nav-icon { font-size: 18px; width: 22px; text-align: center; }
+
+  .sidebar-footer {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .pharmacy-name {
+    color: var(--blue-300);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .pharmacy-label {
+    color: rgba(255,255,255,0.4);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+
+  /* ── MAIN ── */
+  .main {
+    margin-left: 240px;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 0 32px;
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 50;
+  }
+
+  .topbar-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--blue-800);
+    letter-spacing: -0.3px;
+  }
+
+  .topbar-right {
+    display: flex; align-items: center; gap: 14px;
+  }
+
+  .notif-btn {
+    position: relative;
+    background: var(--blue-50);
+    border: 1px solid var(--blue-200, #bbdefb);
+    border-radius: var(--radius-sm);
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px;
+    transition: background 0.15s;
+  }
+
+  .notif-btn:hover { background: var(--blue-100); }
+
+  .notif-badge {
+    position: absolute; top: -4px; right: -4px;
+    background: var(--expired);
+    color: white; font-size: 10px; font-weight: 700;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid white;
+  }
+
+  .date-chip {
+    background: var(--blue-50);
+    border: 1px solid var(--blue-200, #bbdefb);
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--blue-600);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .content {
+    padding: 28px 32px;
+  }
+
+  /* ── PAGES ── */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── STAT CARDS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-200);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+
+  .stat-card.expired::before { background: var(--expired); }
+  .stat-card.critical::before { background: var(--critical); }
+  .stat-card.warning::before { background: var(--warning); }
+  .stat-card.safe::before { background: var(--safe); }
+
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--gray-400);
+    margin-bottom: 8px;
+  }
+
+  .stat-number {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-card.expired .stat-number { color: var(--expired); }
+  .stat-card.critical .stat-number { color: var(--critical); }
+  .stat-card.warning .stat-number { color: var(--warning); }
+  .stat-card.safe .stat-number { color: var(--safe); }
+
+  .stat-sub {
+    font-size: 12px;
+    color: var(--gray-400);
+    font-weight: 400;
+  }
+
+  .stat-emoji { font-size: 22px; position: absolute; top: 18px; right: 18px; }
+
+  /* ── PRODUCT LIST ── */
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--blue-800);
+  }
+
+  .filter-row {
+    display: flex; gap: 8px;
+  }
+
+  .filter-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid var(--gray-200);
+    background: var(--white);
+    color: var(--gray-600);
+    transition: all 0.15s;
+  }
+
+  .filter-btn:hover, .filter-btn.active {
+    border-color: var(--blue-500);
+    background: var(--blue-500);
+    color: white;
+  }
+
+  .product-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .product-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    border: 1.5px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.15s;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .product-card:hover {
+    border-color: var(--blue-300);
+    box-shadow: var(--shadow-md);
+  }
+
+  .product-card.expired { border-color: var(--expired-border); background: var(--expired-bg); }
+  .product-card.critical { border-color: var(--critical-border); background: var(--critical-bg); }
+  .product-card.warning { border-color: var(--warning-border); background: var(--warning-bg); }
+
+  .status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .status-dot.expired { background: var(--expired); box-shadow: 0 0 6px var(--expired); }
+  .status-dot.critical { background: var(--critical); box-shadow: 0 0 6px var(--critical); }
+  .status-dot.warning { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+  .status-dot.safe { background: var(--safe); }
+
+  .product-info { flex: 1; }
+
+  .product-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gray-800);
+    margin-bottom: 3px;
+  }
+
+  .product-meta {
+    font-size: 12px;
+    color: var(--gray-400);
+    display: flex; gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .product-meta span { display: flex; align-items: center; gap: 4px; }
+
+  .product-badges {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+
+  .badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .badge.expired { background: var(--expired); color: white; }
+  .badge.critical { background: var(--critical); color: white; }
+  .badge.warning { background: var(--warning); color: white; }
+  .badge.safe { background: var(--safe); color: white; }
+
+  .qty-badge {
+    background: var(--blue-100);
+    color: var(--blue-700);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .card-actions {
+    display: flex; gap: 8px;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .btn-primary {
+    background: var(--blue-500);
+    color: white;
+  }
+
+  .btn-primary:hover { background: var(--blue-600); }
+
+  .btn-danger {
+    background: var(--expired-bg);
+    color: var(--expired);
+    border: 1.5px solid var(--expired-border);
+  }
+
+  .btn-danger:hover { background: var(--expired); color: white; }
+
+  .btn-outline {
+    background: white;
+    color: var(--blue-600);
+    border: 1.5px solid var(--blue-300);
+  }
+
+  .btn-outline:hover { background: var(--blue-50); }
+
+  .btn-sell {
+    background: var(--safe-bg);
+    color: var(--safe);
+    border: 1.5px solid var(--safe-border);
+  }
+
+  .btn-sell:hover { background: var(--safe); color: white; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(10,22,40,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--white);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 500px;
+    box-shadow: var(--shadow-lg);
+    animation: modalIn 0.2s ease;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal-header {
+    padding: 22px 24px 16px;
+    border-bottom: 1px solid var(--gray-200);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .modal-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--blue-800);
+  }
+
+  .modal-close {
+    background: var(--gray-100);
+    border: none;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+
+  .modal-close:hover { background: var(--gray-200); }
+
+  .modal-body { padding: 20px 24px; }
+
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--gray-200);
+    display: flex; gap: 10px; justify-content: flex-end;
+  }
+
+  /* ── FORM ── */
+  .form-group { margin-bottom: 16px; }
+
+  .form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-600);
+    margin-bottom: 6px;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--gray-800);
+    background: var(--white);
+    transition: border-color 0.15s;
+    outline: none;
+  }
+
+  .form-input:focus { border-color: var(--blue-400); }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .scan-area {
+    border: 2px dashed var(--blue-300);
+    border-radius: var(--radius);
+    padding: 24px;
+    text-align: center;
+    background: var(--blue-50);
+    margin-bottom: 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .scan-area:hover { border-color: var(--blue-500); background: var(--blue-100); }
+  .scan-area-icon { font-size: 32px; margin-bottom: 8px; }
+  .scan-area-text { font-size: 14px; font-weight: 600; color: var(--blue-600); }
+  .scan-area-sub { font-size: 12px; color: var(--gray-400); margin-top: 4px; }
+
+  .divider {
+    display: flex; align-items: center; gap: 12px;
+    margin: 16px 0;
+  }
+
+  .divider-line { flex: 1; height: 1px; background: var(--gray-200); }
+  .divider-text { font-size: 12px; color: var(--gray-400); font-weight: 500; }
+
+  /* ── NOTIFICATIONS PANEL ── */
+  .notif-panel {
+    position: fixed;
+    top: 64px; right: 0;
+    width: 340px;
+    height: calc(100vh - 64px);
+    background: var(--white);
+    border-left: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-lg);
+    z-index: 200;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    display: flex; flex-direction: column;
+  }
+
+  .notif-panel.open { transform: translateX(0); }
+
+  .notif-panel-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--gray-200);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .notif-panel-title { font-size: 15px; font-weight: 700; color: var(--blue-800); }
+
+  .notif-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .notif-item {
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    border-left: 3px solid;
+    background: var(--gray-50);
+  }
+
+  .notif-item.expired { border-color: var(--expired); background: var(--expired-bg); }
+  .notif-item.critical { border-color: var(--critical); background: var(--critical-bg); }
+  .notif-item.warning { border-color: var(--warning); background: var(--warning-bg); }
+
+  .notif-item-title { font-size: 13px; font-weight: 700; color: var(--gray-800); margin-bottom: 3px; }
+  .notif-item-sub { font-size: 12px; color: var(--gray-600); }
+  .notif-item-time { font-size: 11px; color: var(--gray-400); margin-top: 4px; }
+
+  /* ── ANALYTICS ── */
+  .analytics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .analytics-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .analytics-card-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--gray-400);
+    margin-bottom: 14px;
+  }
+
+  .loss-amount {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--expired);
+    letter-spacing: -1px;
+    margin-bottom: 4px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .loss-sub { font-size: 13px; color: var(--gray-400); }
+
+  .top-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .top-item {
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .top-rank {
+    width: 22px; height: 22px;
+    background: var(--blue-100);
+    color: var(--blue-600);
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .top-name { font-size: 13px; font-weight: 600; flex: 1; color: var(--gray-800); }
+  .top-count { font-size: 12px; color: var(--gray-400); font-family: 'DM Mono', monospace; }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--gray-200);
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--blue-500);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  /* ── SELL MODAL ── */
+  .sell-product-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--blue-800);
+    margin-bottom: 4px;
+  }
+
+  .sell-product-meta {
+    font-size: 13px;
+    color: var(--gray-400);
+    margin-bottom: 20px;
+  }
+
+  .sell-stock-display {
+    background: var(--blue-50);
+    border: 1px solid var(--blue-200, #bbdefb);
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    margin-bottom: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .sell-stock-label { font-size: 13px; color: var(--gray-600); font-weight: 500; }
+  .sell-stock-value { font-size: 22px; font-weight: 700; color: var(--blue-700); font-family: 'DM Mono', monospace; }
+
+  /* ── ADD PRODUCT TABS ── */
+  .tab-bar {
+    display: flex;
+    border-bottom: 2px solid var(--gray-200);
+    margin-bottom: 18px;
+    gap: 0;
+  }
+
+  .tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-400);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+  }
+
+  .tab.active {
+    color: var(--blue-600);
+    border-bottom-color: var(--blue-500);
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── ESP32 STATUS ── */
+  .esp-status {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .esp-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--safe);
+    box-shadow: 0 0 8px var(--safe);
+    animation: pulse 2s infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .esp-info { flex: 1; }
+  .esp-title { font-size: 13px; font-weight: 700; color: var(--gray-800); }
+  .esp-sub { font-size: 12px; color: var(--gray-400); }
+
+  .esp-last-scan {
+    font-size: 12px;
+    color: var(--blue-600);
+    font-family: 'DM Mono', monospace;
+    background: var(--blue-50);
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--gray-400);
+  }
+
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-text { font-size: 15px; font-weight: 600; color: var(--gray-600); margin-bottom: 6px; }
+  .empty-sub { font-size: 13px; }
+
+  /* ── TOAST ── */
+  .toast-container {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    z-index: 2000;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  .toast {
+    background: var(--blue-800);
+    color: white;
+    padding: 14px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: var(--shadow-lg);
+    display: flex; align-items: center; gap: 10px;
+    animation: toastIn 0.3s ease;
+    max-width: 320px;
+  }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .toast.success { background: var(--safe); }
+  .toast.error { background: var(--expired); }
+  .toast.warning { background: var(--critical); }
+
+  /* ── SEARCH BAR ── */
+  .search-bar {
+    position: relative;
+    margin-bottom: 16px;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 10px 14px 10px 38px;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color 0.15s;
+    background: var(--white);
+  }
+
+  .search-input:focus { border-color: var(--blue-400); }
+
+  .search-icon {
+    position: absolute;
+    left: 12px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: var(--gray-400);
+  }
+
+  .camera-preview {
+    width: 100%;
+    border-radius: var(--radius-sm);
+    background: #000;
+    aspect-ratio: 4/3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 13px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  video { width: 100%; height: 100%; object-fit: cover; }
+
+  .fetched-product {
+    background: var(--blue-50);
+    border: 1px solid var(--blue-200, #bbdefb);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+
+  .fetched-name { font-size: 14px; font-weight: 700; color: var(--blue-800); }
+  .fetched-brand { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+
+  @media (max-width: 900px) {
+    .sidebar { width: 60px; }
+    .nav-item span:not(.nav-icon) { display: none; }
+    .logo-text, .logo-sub, .pharmacy-name, .pharmacy-label { display: none; }
+    .main { margin-left: 60px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .analytics-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🛡️</div>
+    <div class="logo-text">Sentinel Auditor</div>
+    <div class="logo-sub">Expiry Management</div>
+  </div>
+  <nav class="sidebar-nav">
+    <button class="nav-item active" onclick="showPage('dashboard')">
+      <span class="nav-icon">📊</span>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav-item" onclick="showPage('inventory')">
+      <span class="nav-icon">📦</span>
+      <span>Inventory</span>
+    </button>
+    <button class="nav-item" onclick="showPage('add')">
+      <span class="nav-icon">➕</span>
+      <span>Add Product</span>
+    </button>
+    <button class="nav-item" onclick="showPage('analytics')">
+      <span class="nav-icon">📈</span>
+      <span>Analytics</span>
+    </button>
+    <button class="nav-item" onclick="showPage('esp32')">
+      <span class="nav-icon">🔌</span>
+      <span>ESP32 Scanner</span>
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="pharmacy-label">Pharmacy</div>
+    <div class="pharmacy-name">Apollo Pharmacy</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">Dashboard</div>
+    <div class="topbar-right">
+      <div class="date-chip" id="current-date"></div>
+      <div class="notif-btn" onclick="toggleNotifPanel()">
+        🔔
+        <div class="notif-badge" id="notif-count">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD PAGE -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card expired">
+          <div class="stat-emoji">⛔</div>
+          <div class="stat-label">Expired</div>
+          <div class="stat-number" id="stat-expired">0</div>
+          <div class="stat-sub">Remove immediately</div>
+        </div>
+        <div class="stat-card critical">
+          <div class="stat-emoji">🔴</div>
+          <div class="stat-label">1–3 Days</div>
+          <div class="stat-number" id="stat-critical">0</div>
+          <div class="stat-sub">Urgent action needed</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-emoji">🟡</div>
+          <div class="stat-label">4–30 Days</div>
+          <div class="stat-number" id="stat-warning">0</div>
+          <div class="stat-sub">Monitor closely</div>
+        </div>
+        <div class="stat-card safe">
+          <div class="stat-emoji">✅</div>
+          <div class="stat-label">Safe</div>
+          <div class="stat-number" id="stat-safe">0</div>
+          <div class="stat-sub">Good stock</div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">⚠️ Needs Attention</div>
+      </div>
+      <div class="product-list" id="dashboard-urgent-list">
+        <div class="empty-state">
+          <div class="empty-icon">🎉</div>
+          <div class="empty-text">All products are safe!</div>
+          <div class="empty-sub">No urgent items right now</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INVENTORY PAGE -->
+    <div class="page" id="page-inventory">
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" type="text" placeholder="Search by product name or barcode..." oninput="renderInventory(this.value)">
+      </div>
+      <div class="section-header">
+        <div class="section-title">All Products</div>
+        <div class="filter-row">
+          <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+          <button class="filter-btn" onclick="setFilter('expired', this)">Expired</button>
+          <button class="filter-btn" onclick="setFilter('critical', this)">Critical</button>
+          <button class="filter-btn" onclick="setFilter('warning', this)">Warning</button>
+          <button class="filter-btn" onclick="setFilter('safe', this)">Safe</button>
+        </div>
+      </div>
+      <div class="product-list" id="inventory-list"></div>
+    </div>
+
+    <!-- ADD PRODUCT PAGE -->
+    <div class="page" id="page-add">
+      <div style="max-width: 560px;">
+        <div class="tab-bar">
+          <div class="tab active" onclick="switchTab('scan-tab', this)">📷 Scan Barcode</div>
+          <div class="tab" onclick="switchTab('manual-tab', this)">⌨️ Enter Manually</div>
+        </div>
+
+        <!-- SCAN TAB -->
+        <div class="tab-content active" id="scan-tab">
+          <div class="camera-preview" id="camera-preview">
+            <div style="text-align:center;">
+              <div style="font-size:36px;margin-bottom:8px;">📷</div>
+              <div>Click below to start camera</div>
+            </div>
+            <video id="camera-video" style="display:none;" autoplay playsinline></video>
+          </div>
+          <button class="btn btn-primary" style="width:100%;margin-bottom:12px;" onclick="startCamera()">Start Camera & Scan</button>
+          <div id="scan-result" style="display:none;" class="fetched-product">
+            <div class="fetched-name" id="scan-product-name">—</div>
+            <div class="fetched-brand" id="scan-product-brand">—</div>
+          </div>
+          <div id="scan-form" style="display:none;">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Expiry Date *</label>
+                <input class="form-input" type="month" id="scan-expiry">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Shelf Location</label>
+                <input class="form-input" type="text" id="scan-shelf" placeholder="e.g. A2">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Quantity</label>
+                <input class="form-input" type="number" id="scan-qty" placeholder="50" min="1">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Batch Number</label>
+                <input class="form-input" type="text" id="scan-batch" placeholder="e.g. CRO2024B">
+              </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%;" onclick="addProductFromScan()">✅ Register Product</button>
+          </div>
+        </div>
+
+        <!-- MANUAL TAB -->
+        <div class="tab-content" id="manual-tab">
+          <div class="form-group">
+            <label class="form-label">Barcode / GTIN</label>
+            <div style="display:flex;gap:8px;">
+              <input class="form-input" type="text" id="manual-barcode" placeholder="e.g. 8901234567890" style="flex:1;">
+              <button class="btn btn-outline" onclick="fetchProductDetails()">Fetch</button>
+            </div>
+          </div>
+          <div id="manual-fetched" style="display:none;" class="fetched-product">
+            <div class="fetched-name" id="manual-product-name">—</div>
+            <div class="fetched-brand" id="manual-product-brand">—</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Product Name *</label>
+            <input class="form-input" type="text" id="manual-name" placeholder="e.g. Crocin 500mg">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Expiry Date *</label>
+              <input class="form-input" type="month" id="manual-expiry">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Shelf Location</label>
+              <input class="form-input" type="text" id="manual-shelf" placeholder="e.g. A2">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Quantity</label>
+              <input class="form-input" type="number" id="manual-qty" placeholder="50" min="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Batch Number</label>
+              <input class="form-input" type="text" id="manual-batch" placeholder="e.g. CRO2024B">
+            </div>
+          </div>
+          <button class="btn btn-primary" style="width:100%;" onclick="addProductManual()">✅ Register Product</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ANALYTICS PAGE -->
+    <div class="page" id="page-analytics">
+      <div class="analytics-grid">
+        <div class="analytics-card">
+          <div class="analytics-card-title">💸 Estimated Loss This Month</div>
+          <div class="loss-amount" id="analytics-loss">₹0</div>
+          <div class="loss-sub" id="analytics-loss-sub">from 0 expired products</div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-card-title">📦 Inventory Summary</div>
+          <div class="top-list" id="analytics-summary"></div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-card-title">🏆 Most Expiry-Prone Products</div>
+          <div class="top-list" id="analytics-top-products">
+            <div style="font-size:13px;color:var(--gray-400);">No expired products yet</div>
+          </div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-card-title">🗂️ Stock by Shelf</div>
+          <div class="top-list" id="analytics-shelves">
+            <div style="font-size:13px;color:var(--gray-400);">No shelf data yet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ESP32 PAGE -->
+    <div class="page" id="page-esp32">
+      <div class="esp-status">
+        <div class="esp-dot"></div>
+        <div class="esp-info">
+          <div class="esp-title">ESP32-CAM — Billing Counter Scanner</div>
+          <div class="esp-sub">Fixed position · Barcode scanning active · Connected via WiFi</div>
+        </div>
+        <div class="esp-last-scan" id="esp-last-scan">No scans yet</div>
+      </div>
+
+      <div style="background:var(--white);border-radius:var(--radius);padding:24px;border:1px solid var(--gray-200);box-shadow:var(--shadow-sm);max-width:560px;">
+        <div style="font-size:15px;font-weight:700;color:var(--blue-800);margin-bottom:6px;">How It Works</div>
+        <div style="font-size:13px;color:var(--gray-600);line-height:1.7;margin-bottom:20px;">
+          The ESP32-CAM is fixed at your billing counter. When a pharmacist sells a medicine,
+          they place the product in front of the camera. It scans the barcode automatically
+          and triggers a sale confirmation popup below.
+        </div>
+
+        <div style="font-size:13px;font-weight:700;color:var(--gray-600);margin-bottom:10px;">SIMULATE A SALE (Demo)</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <input class="form-input" type="text" id="esp-barcode-input" placeholder="Enter barcode to simulate ESP32 scan" style="flex:1;">
+          <button class="btn btn-primary" onclick="simulateESPScan()">Scan</button>
+        </div>
+
+        <div id="esp-scan-list" class="product-list"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- NOTIFICATION PANEL -->
+<div class="notif-panel" id="notif-panel">
+  <div class="notif-panel-header">
+    <div class="notif-panel-title">🔔 Alerts</div>
+    <button class="modal-close" onclick="toggleNotifPanel()">✕</button>
+  </div>
+  <div class="notif-list" id="notif-list">
+    <div style="text-align:center;padding:24px;color:var(--gray-400);font-size:13px;">No alerts right now</div>
+  </div>
+</div>
+
+<!-- SELL MODAL -->
+<div class="modal-overlay" id="sell-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">💊 Record Sale</div>
+      <button class="modal-close" onclick="closeSellModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="sell-product-name" id="sell-modal-name">—</div>
+      <div class="sell-product-meta" id="sell-modal-meta">—</div>
+      <div class="sell-stock-display">
+        <div class="sell-stock-label">Current Stock</div>
+        <div class="sell-stock-value" id="sell-modal-stock">—</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Units Sold *</label>
+        <input class="form-input" type="number" id="sell-qty" min="1" placeholder="Enter quantity sold">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeSellModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmSale()">✅ Confirm Sale</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ── DATA STORE ──
+let products = JSON.parse(localStorage.getItem('sentinel-products') || '[]');
+let currentFilter = 'all';
+let currentSellId = null;
+let notifPanelOpen = false;
+
+// ── SAMPLE DATA (first load) ──
+if (products.length === 0) {
+  const today = new Date();
+  const fmt = (d) => {
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const y = d.getFullYear();
+    return `${y}-${m}`;
+  };
+  const addDays = (n) => { const d = new Date(today); d.setDate(d.getDate()+n); return d; };
+
+  products = [
+    { id: 1, name: 'Dolo 650mg', barcode: '8901234000001', expiry: fmt(addDays(-5)), shelf: 'B1', qty: 12, batch: 'DOL2024A', price: 30 },
+    { id: 2, name: 'Vicks Inhaler', barcode: '8901234000002', expiry: fmt(addDays(2)), shelf: 'C3', qty: 8, batch: 'VKS2024B', price: 85 },
+    { id: 3, name: 'Crocin 500mg', barcode: '8901234000003', expiry: fmt(addDays(7)), shelf: 'A2', qty: 34, batch: 'CRO2024C', price: 25 },
+    { id: 4, name: 'Paracetamol 650mg', barcode: '8901234000004', expiry: fmt(addDays(45)), shelf: 'A1', qty: 200, batch: 'PAR2024D', price: 15 },
+    { id: 5, name: 'Amoxicillin 500mg', barcode: '8901234000005', expiry: fmt(addDays(90)), shelf: 'C2', qty: 60, batch: 'AMX2024E', price: 120 },
+    { id: 6, name: 'Metformin 500mg', barcode: '8901234000006', expiry: fmt(addDays(180)), shelf: 'D1', qty: 150, batch: 'MET2024F', price: 45 },
+  ];
+  saveProducts();
+}
+
+function saveProducts() {
+  localStorage.setItem('sentinel-products', JSON.stringify(products));
+}
+
+// ── STATUS LOGIC ──
+function getStatus(expiryStr) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const exp = new Date(expiryStr + '-01');
+  exp.setMonth(exp.getMonth()+1);
+  exp.setDate(0); // last day of expiry month
+  const diff = Math.ceil((exp - today) / (1000*60*60*24));
+  if (diff < 0) return { status: 'expired', days: diff, label: `Expired ${Math.abs(diff)} day${Math.abs(diff)!==1?'s':''} ago` };
+  if (diff <= 3) return { status: 'critical', days: diff, label: `Expires in ${diff} day${diff!==1?'s':''}` };
+  if (diff <= 30) return { status: 'warning', days: diff, label: `Expires in ${diff} days` };
+  return { status: 'safe', days: diff, label: `${diff} days remaining` };
+}
+
+// ── RENDER PRODUCT CARD ──
+function renderCard(p, showSell = true) {
+  const s = getStatus(p.expiry);
+  return `
+    <div class="product-card ${s.status}" id="card-${p.id}">
+      <div class="status-dot ${s.status}"></div>
+      <div class="product-info">
+        <div class="product-name">${p.name}</div>
+        <div class="product-meta">
+          <span>📍 ${p.shelf || '—'}</span>
+          <span>🏷️ ${p.barcode}</span>
+          <span>📅 ${p.expiry}</span>
+          <span>📦 Batch: ${p.batch || '—'}</span>
+        </div>
+      </div>
+      <div class="product-badges">
+        <span class="qty-badge">${p.qty} units</span>
+        <span class="badge ${s.status}">${s.label}</span>
+      </div>
+      <div class="card-actions">
+        ${showSell ? `<button class="btn btn-sell" onclick="openSellModal(${p.id})">💊 Sell</button>` : ''}
+        ${s.status === 'expired' ? `<button class="btn btn-danger" onclick="deleteProduct(${p.id})">🗑️ Delete</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// ── DASHBOARD ──
+function renderDashboard() {
+  let exp=0, crit=0, warn=0, safe=0;
+  let urgentHTML = '';
+
+  products.forEach(p => {
+    const s = getStatus(p.expiry);
+    if (s.status === 'expired') { exp++; urgentHTML += renderCard(p); }
+    else if (s.status === 'critical') { crit++; urgentHTML += renderCard(p); }
+    else if (s.status === 'warning') warn++;
+    else safe++;
+  });
+
+  document.getElementById('stat-expired').textContent = exp;
+  document.getElementById('stat-critical').textContent = crit;
+  document.getElementById('stat-warning').textContent = warn;
+  document.getElementById('stat-safe').textContent = safe;
+
+  const el = document.getElementById('dashboard-urgent-list');
+  el.innerHTML = urgentHTML || `
+    <div class="empty-state">
+      <div class="empty-icon">🎉</div>
+      <div class="empty-text">All products are safe!</div>
+      <div class="empty-sub">No urgent items right now</div>
+    </div>`;
+
+  renderNotifications();
+}
+
+// ── INVENTORY ──
+function renderInventory(search = '') {
+  let list = products.filter(p => {
+    const s = getStatus(p.expiry).status;
+    const matchFilter = currentFilter === 'all' || s === currentFilter;
+    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode.includes(search);
+    return matchFilter && matchSearch;
+  });
+
+  list.sort((a,b) => getStatus(a.expiry).days - getStatus(b.expiry).days);
+
+  const el = document.getElementById('inventory-list');
+  el.innerHTML = list.length
+    ? list.map(p => renderCard(p)).join('')
+    : `<div class="empty-state"><div class="empty-icon">📭</div><div class="empty-text">No products found</div></div>`;
+}
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderInventory();
+}
+
+// ── ANALYTICS ──
+function renderAnalytics() {
+  const expired = products.filter(p => getStatus(p.expiry).status === 'expired');
+  const loss = expired.reduce((sum, p) => sum + (p.qty * (p.price || 30)), 0);
+
+  document.getElementById('analytics-loss').textContent = `₹${loss.toLocaleString('en-IN')}`;
+  document.getElementById('analytics-loss-sub').textContent = `from ${expired.length} expired product${expired.length !== 1 ? 's' : ''}`;
+
+  // Summary
+  const statuses = ['expired','critical','warning','safe'];
+  const colors = { expired: 'var(--expired)', critical: 'var(--critical)', warning: 'var(--warning)', safe: 'var(--safe)' };
+  const labels = { expired: '⛔ Expired', critical: '🔴 Critical', warning: '🟡 Warning', safe: '✅ Safe' };
+  let summaryHTML = '';
+  statuses.forEach(s => {
+    const count = products.filter(p => getStatus(p.expiry).status === s).length;
+    summaryHTML += `<div class="top-item">
+      <div class="top-rank" style="background:${colors[s]}20;color:${colors[s]}">${count}</div>
+      <div class="top-name">${labels[s]}</div>
+    </div>`;
+  });
+  document.getElementById('analytics-summary').innerHTML = summaryHTML || '—';
+
+  // Top expired
+  if (expired.length) {
+    document.getElementById('analytics-top-products').innerHTML = expired.slice(0,4).map((p,i) => `
+      <div class="top-item">
+        <div class="top-rank">${i+1}</div>
+        <div class="top-name">${p.name}</div>
+        <div class="top-count">${p.qty} units</div>
+      </div>
+    `).join('');
+  }
+
+  // Shelves
+  const shelves = {};
+  products.forEach(p => {
+    if (p.shelf) shelves[p.shelf] = (shelves[p.shelf] || 0) + 1;
+  });
+  const shelfEntries = Object.entries(shelves).sort((a,b) => b[1]-a[1]);
+  const maxShelf = shelfEntries[0]?.[1] || 1;
+  document.getElementById('analytics-shelves').innerHTML = shelfEntries.slice(0,5).map(([shelf, count]) => `
+    <div>
+      <div class="top-item">
+        <div class="top-rank">📍</div>
+        <div class="top-name">Shelf ${shelf}</div>
+        <div class="top-count">${count} items</div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${(count/maxShelf)*100}%"></div></div>
+    </div>
+  `).join('') || '<div style="font-size:13px;color:var(--gray-400);">No shelf data</div>';
+}
+
+// ── NOTIFICATIONS ──
+function renderNotifications() {
+  const alerts = [];
+  products.forEach(p => {
+    const s = getStatus(p.expiry);
+    if (s.status === 'expired') alerts.push({ type: 'expired', title: `⛔ ${p.name} has expired`, sub: `${s.label} · Shelf ${p.shelf} · ${p.qty} units remaining`, p });
+    else if (s.status === 'critical') alerts.push({ type: 'critical', title: `🔴 ${p.name} expiring soon`, sub: `${s.label} · Shelf ${p.shelf} · ${p.qty} units`, p });
+    else if (s.days <= 30) alerts.push({ type: 'warning', title: `🟡 ${p.name} — expiry approaching`, sub: `${s.label} · Shelf ${p.shelf}`, p });
+  });
+
+  document.getElementById('notif-count').textContent = alerts.length;
+  document.getElementById('notif-list').innerHTML = alerts.length
+    ? alerts.map(a => `
+        <div class="notif-item ${a.type}">
+          <div class="notif-item-title">${a.title}</div>
+          <div class="notif-item-sub">${a.sub}</div>
+          <div class="notif-item-time">Today</div>
+        </div>`).join('')
+    : `<div style="text-align:center;padding:24px;color:var(--gray-400);font-size:13px;">No alerts right now 🎉</div>`;
+}
+
+function toggleNotifPanel() {
+  notifPanelOpen = !notifPanelOpen;
+  document.getElementById('notif-panel').classList.toggle('open', notifPanelOpen);
+}
+
+// ── SELL MODAL ──
+function openSellModal(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  currentSellId = id;
+  document.getElementById('sell-modal-name').textContent = p.name;
+  document.getElementById('sell-modal-meta').textContent = `Shelf ${p.shelf} · Batch ${p.batch} · Expiry ${p.expiry}`;
+  document.getElementById('sell-modal-stock').textContent = p.qty + ' units';
+  document.getElementById('sell-qty').value = '';
+  document.getElementById('sell-modal').classList.add('open');
+}
+
+function closeSellModal() {
+  document.getElementById('sell-modal').classList.remove('open');
+  currentSellId = null;
+}
+
+function confirmSale() {
+  const qty = parseInt(document.getElementById('sell-qty').value);
+  if (!qty || qty < 1) { showToast('Enter a valid quantity', 'error'); return; }
+  const p = products.find(x => x.id === currentSellId);
+  if (!p) return;
+  if (qty > p.qty) { showToast(`Only ${p.qty} units in stock`, 'error'); return; }
+  p.qty -= qty;
+  saveProducts();
+  closeSellModal();
+  renderAll();
+  showToast(`✅ Sold ${qty} units of ${p.name}. Stock: ${p.qty} remaining`, 'success');
+  if (p.qty === 0) showToast(`⚠️ ${p.name} is now out of stock!`, 'warning');
+  document.getElementById('esp-last-scan').textContent = `Last: ${p.name}`;
+}
+
+// ── DELETE ──
+function deleteProduct(id) {
+  const p = products.find(x => x.id === id);
+  if (!confirm(`Delete "${p?.name}" from inventory?`)) return;
+  products = products.filter(x => x.id !== id);
+  saveProducts();
+  renderAll();
+  showToast(`🗑️ ${p.name} removed from inventory`, 'success');
+}
+
+// ── ADD PRODUCT ──
+function addProductManual() {
+  const name = document.getElementById('manual-name').value.trim();
+  const expiry = document.getElementById('manual-expiry').value;
+  const barcode = document.getElementById('manual-barcode').value.trim();
+  const shelf = document.getElementById('manual-shelf').value.trim();
+  const qty = parseInt(document.getElementById('manual-qty').value) || 0;
+  const batch = document.getElementById('manual-batch').value.trim();
+
+  if (!name || !expiry) { showToast('Product name and expiry date are required', 'error'); return; }
+
+  const newProduct = {
+    id: Date.now(),
+    name, expiry, barcode: barcode || '—',
+    shelf: shelf || '—', qty, batch: batch || '—', price: 30
+  };
+
+  products.push(newProduct);
+  saveProducts();
+  renderAll();
+  showToast(`✅ ${name} registered successfully`, 'success');
+
+  // Clear form
+  ['manual-name','manual-barcode','manual-expiry','manual-shelf','manual-qty','manual-batch'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('manual-fetched').style.display = 'none';
+}
+
+function addProductFromScan() {
+  const name = document.getElementById('scan-product-name').textContent;
+  const expiry = document.getElementById('scan-expiry').value;
+  const shelf = document.getElementById('scan-shelf').value.trim();
+  const qty = parseInt(document.getElementById('scan-qty').value) || 0;
+  const batch = document.getElementById('scan-batch').value.trim();
+
+  if (!expiry) { showToast('Please enter the expiry date', 'error'); return; }
+
+  const newProduct = {
+    id: Date.now(),
+    name: name || 'Unknown Product',
+    expiry, barcode: '—',
+    shelf: shelf || '—', qty, batch: batch || '—', price: 30
+  };
+
+  products.push(newProduct);
+  saveProducts();
+  renderAll();
+  showToast(`✅ ${name} registered successfully`, 'success');
+  document.getElementById('scan-form').style.display = 'none';
+  document.getElementById('scan-result').style.display = 'none';
+}
+
+// ── FETCH PRODUCT DETAILS (Open Food Facts API) ──
+async function fetchProductDetails() {
+  const barcode = document.getElementById('manual-barcode').value.trim();
+  if (!barcode) { showToast('Enter a barcode first', 'error'); return; }
+
+  showToast('🔍 Fetching product details...', '');
+  try {
+    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+    const data = await res.json();
+    if (data.status === 1) {
+      const p = data.product;
+      document.getElementById('manual-name').value = p.product_name || '';
+      document.getElementById('manual-product-name').textContent = p.product_name || 'Unknown';
+      document.getElementById('manual-product-brand').textContent = p.brands || '—';
+      document.getElementById('manual-fetched').style.display = 'block';
+      showToast('✅ Product details fetched!', 'success');
+    } else {
+      showToast('Product not found in database. Enter manually.', 'warning');
+    }
+  } catch(e) {
+    showToast('Could not fetch product. Enter manually.', 'error');
+  }
+}
+
+// ── CAMERA (Barcode Scan) ──
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = document.getElementById('camera-video');
+    video.srcObject = stream;
+    video.style.display = 'block';
+    document.querySelector('#camera-preview > div').style.display = 'none';
+
+    showToast('📷 Camera started. Point at barcode.', '');
+
+    // Simulate scan after 3 seconds for demo
+    setTimeout(() => {
+      const demoNames = ['Azithromycin 500mg', 'Metronidazole 400mg', 'Cetirizine 10mg'];
+      const name = demoNames[Math.floor(Math.random() * demoNames.length)];
+      document.getElementById('scan-product-name').textContent = name;
+      document.getElementById('scan-product-brand').textContent = 'Auto-detected from barcode';
+      document.getElementById('scan-result').style.display = 'block';
+      document.getElementById('scan-form').style.display = 'block';
+      showToast(`✅ Barcode detected: ${name}`, 'success');
+      stream.getTracks().forEach(t => t.stop());
+      video.style.display = 'none';
+    }, 3000);
+  } catch(e) {
+    showToast('Camera not available. Use manual entry.', 'error');
+  }
+}
+
+// ── ESP32 SIMULATE ──
+function simulateESPScan() {
+  const barcode = document.getElementById('esp-barcode-input').value.trim();
+  if (!barcode) { showToast('Enter a barcode to simulate', 'error'); return; }
+
+  const product = products.find(p => p.barcode === barcode);
+  const listEl = document.getElementById('esp-scan-list');
+
+  if (product) {
+    document.getElementById('esp-last-scan').textContent = `Last: ${product.name}`;
+    listEl.innerHTML = renderCard(product, true);
+    openSellModal(product.id);
+    showToast(`📡 ESP32 scanned: ${product.name}`, 'success');
+  } else {
+    listEl.innerHTML = `<div class="empty-state"><div class="empty-icon">❓</div><div class="empty-text">Product not found</div><div class="empty-sub">Barcode: ${barcode} not in database. Please register it first.</div></div>`;
+    showToast('Product not in database. Register it first.', 'warning');
+  }
+  document.getElementById('esp-barcode-input').value = '';
+}
+
+// ── PAGE NAVIGATION ──
+const pageTitles = {
+  dashboard: 'Dashboard',
+  inventory: 'Inventory',
+  add: 'Add Product',
+  analytics: 'Analytics',
+  esp32: 'ESP32 Scanner'
+};
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelector(`[onclick="showPage('${name}')"]`).classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[name];
+  renderAll();
+}
+
+// ── TABS ──
+function switchTab(tabId, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── TOAST ──
+function showToast(msg, type = '') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
+// ── DATE ──
+function updateDate() {
+  const now = new Date();
+  const options = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
+  document.getElementById('current-date').textContent = now.toLocaleDateString('en-IN', options);
+}
+
+// ── RENDER ALL ──
+function renderAll() {
+  renderDashboard();
+  renderInventory();
+  renderAnalytics();
+}
+
+// ── INIT ──
+updateDate();
+renderAll();
+</script>
+</body>
+</html>
