@@ -771,6 +771,14 @@ function isLowStock(p){ return p.qty <= settings.lowThresh; }
 // ═══════════════════════════════════════
 // RENDER PRODUCT CARD
 // ═══════════════════════════════════════
+// Format expiry from "2026-06" to "Jun 2026"
+function fmtExpiry(exp){
+  if(!exp) return '—';
+  const [y,m]=exp.split('-');
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[parseInt(m)-1]} ${y}`;
+}
+
 function card(p){
   const st = getStatus(p.expiry);
   const low = isLowStock(p) && st.s==='sa';
@@ -785,7 +793,7 @@ function card(p){
         ${p.category?`<span>💊 ${p.category}</span>`:''}
         ${p.shelf?`<span>📍 ${p.shelf}</span>`:''}
         <span>🔢 ${p.barcode||'—'}</span>
-        <span>📅 ${p.expiry}</span>
+        <span>📅 ${fmtExpiry(p.expiry)}</span>
       </div>
     </div>
     <div class="pbdg">
@@ -894,7 +902,7 @@ function openSell(id){
   currentSellId=id;
   const st=getStatus(p.expiry);
   document.getElementById('sell-name').textContent=p.name;
-  document.getElementById('sell-meta').textContent=`${p.brand||''} · ${p.category||''} · Barcode: ${p.barcode||'—'} · Expiry: ${p.expiry}`;
+  document.getElementById('sell-meta').textContent=`${p.brand||''} · ${p.category||''} · Barcode: ${p.barcode||'—'} · Expiry: ${fmtExpiry(p.expiry)}`;
   document.getElementById('sell-sv').textContent=p.qty+' units';
   document.getElementById('sell-q').value='';
   document.getElementById('sell-ex-w').style.display=st.s==='ex'?'block':'none';
@@ -942,19 +950,66 @@ function startScanner(){
     document.getElementById('scan-btn').textContent='⏹ Stop Scanner';
     scanActive=true;
 
+    // Confirmation counter — same code must appear 6 times before accepting
+    const codeVotes={};
+    const NEEDED=6;
+
     Quagga.init({
-      inputStream:{name:'Live',type:'LiveStream',target:v,constraints:{facingMode:'environment'}},
-      decoder:{readers:['ean_reader','ean_8_reader','code_128_reader','code_39_reader','upc_reader']},
-      locate:true
+      inputStream:{name:'Live',type:'LiveStream',target:v,constraints:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}},
+      decoder:{readers:['ean_reader','ean_8_reader','code_128_reader','upc_reader'],multiple:false},
+      locate:true,
+      frequency:10
     },err=>{
       if(err){showToast('Camera error. Use manual tab.','err');stopScanner();return;}
       Quagga.start();
     });
 
+    Quagga.onProcessed(result=>{
+      // Visual feedback on canvas — show detection boxes
+      const ctx=Quagga.canvas.ctx.overlay;
+      const canvas=Quagga.canvas.dom.overlay;
+      if(result){
+        if(result.boxes){
+          ctx.clearRect(0,0,canvas.width,canvas.height);
+          result.boxes.filter(b=>b!==result.box).forEach(b=>{
+            Quagga.ImageDebug.drawPath(b,{x:0,y:1},ctx,{color:'rgba(255,255,255,0.3)',lineWidth:1});
+          });
+        }
+        if(result.box){
+          Quagga.ImageDebug.drawPath(result.box,{x:0,y:1},ctx,{color:'#42a5f5',lineWidth:2});
+        }
+        if(result.codeResult&&result.codeResult.code){
+          Quagga.ImageDebug.drawPath(result.line,{x:'x',y:'y'},ctx,{color:'#4caf50',lineWidth:3});
+        }
+      }
+    });
+
     Quagga.onDetected(async res=>{
-      const code=res.codeResult.code;
       if(scanCooldown) return;
+      const code=res.codeResult.code;
+      const conf=res.codeResult.decodedCodes
+        .filter(c=>c.error!==undefined)
+        .reduce((s,c)=>s+c.error,0);
+      const avgErr=conf/Math.max(res.codeResult.decodedCodes.filter(c=>c.error!==undefined).length,1);
+
+      // Reject low confidence reads (high error = bad read)
+      if(avgErr>0.25) return;
+
+      // Vote system — need same code NEEDED times in a row
+      if(!codeVotes[code]) codeVotes[code]=0;
+      codeVotes[code]++;
+
+      // Show live counter to user
+      const remaining=NEEDED-codeVotes[code];
+      if(remaining>0){
+        document.getElementById('scanner-ph').style.display='none';
+        document.getElementById('scan-btn').textContent=`🔄 Reading... (${codeVotes[code]}/${NEEDED})`;
+        return;
+      }
+
+      // Confirmed!
       scanCooldown=true; setTimeout(()=>scanCooldown=false,4000);
+      Object.keys(codeVotes).forEach(k=>delete codeVotes[k]);
       stopScanner();
       document.getElementById('scan-bc-val').value=code;
       document.getElementById('scan-bc-display').textContent=code;
