@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sentinel Auditor — MediKart</title>
-<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -869,72 +869,78 @@ async function lookupAPI(bc){
 // ── SCANNER ──
 window.toggleScanner=function(){ scanActive?stopScanner():startScanner(); };
 
-let zxingReader=null;
-
 function startScanner(){
-  document.getElementById('sv').style.display='block';
-  document.getElementById('scanner-ph').style.display='none';
-  document.getElementById('scanner-ov').style.display='flex';
-  document.getElementById('scan-btn').textContent='⏹ Stop Scanner';
-  scanActive=true;
+  navigator.mediaDevices.getUserMedia({
+    video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} }
+  }).then(stream=>{
+    scanStream=stream;
+    const v=document.getElementById('sv');
+    v.srcObject=stream;
+    v.style.display='block';
+    document.getElementById('scanner-ph').style.display='none';
+    document.getElementById('scanner-ov').style.display='flex';
+    document.getElementById('scan-btn').textContent='⏹ Stop Scanner';
+    scanActive=true;
 
-  zxingReader = new ZXing.BrowserMultiFormatReader();
+    Quagga.init({
+      inputStream:{
+        type:'LiveStream',
+        target:v,
+        constraints:{ facingMode:{ideal:'environment'} }
+      },
+      decoder:{
+        readers:['ean_reader','ean_8_reader'],
+        debug:{ drawBoundingBox:false, showFrequency:false, drawScanline:false, showPattern:false }
+      },
+      locate:true,
+      numOfWorkers:0,
+      frequency:10
+    }, function(err){
+      if(err){ showToast('Scanner error: '+err,'err'); stopScanner(); return; }
+      Quagga.start();
+    });
 
-  zxingReader.listVideoInputDevices().then(devices=>{
-    // undefined = browser picks back camera automatically on mobile
-    let deviceId = undefined;
-    if(devices.length > 1){
-      const back = devices.find(d=>
-        d.label.toLowerCase().includes('back') ||
-        d.label.toLowerCase().includes('rear') ||
-        d.label.toLowerCase().includes('environment')
-      );
-      deviceId = back ? back.deviceId : devices[devices.length-1].deviceId;
-    }
-
-    zxingReader.decodeFromVideoDevice(deviceId, 'sv', async(result, err)=>{
-      if(!result) return;
+    Quagga.onDetected(async function(result){
       if(scanCooldown) return;
-      const code = result.getText();
-      if(!/^\d{8}$|^\d{13}$/.test(code)) return;
+      var code = result.codeResult.code;
+      if(!code || code.length < 8) return;
 
-      scanCooldown=true;
-      setTimeout(()=>scanCooldown=false, 5000);
+      scanCooldown = true;
+      setTimeout(function(){ scanCooldown=false; }, 5000);
       stopScanner();
 
-      document.getElementById('scan-bc-val').value=code;
-      document.getElementById('scan-bc-display').textContent=code;
-      document.getElementById('scan-detected').style.display='block';
-      document.getElementById('scan-fetched').style.display='none';
-      document.getElementById('scan-nf').style.display='none';
-      document.getElementById('scan-name').value='';
-      showToast(`📷 Barcode: ${code}`,'inf');
+      document.getElementById('scan-bc-val').value = code;
+      document.getElementById('scan-bc-display').textContent = code;
+      document.getElementById('scan-detected').style.display = 'block';
+      document.getElementById('scan-fetched').style.display = 'none';
+      document.getElementById('scan-nf').style.display = 'none';
+      document.getElementById('scan-name').value = '';
+      showToast('📷 Barcode: '+code, 'inf');
 
-      let found=lookupDB(code);
-      if(!found) found=await lookupAPI(code);
+      var found = lookupDB(code);
+      if(!found) found = await lookupAPI(code);
       if(found){
-        document.getElementById('scan-pname').textContent=found.name;
-        document.getElementById('scan-pbrand').textContent=[found.brand,found.category,found.form,found.strength].filter(Boolean).join(' · ');
-        document.getElementById('scan-fetched').style.display='block';
-        document.getElementById('scan-name').value=found.name;
-        document.getElementById('scan-brand-val').value=found.brand||'';
-        document.getElementById('scan-cat-val').value=found.category||'';
-        showToast(`✅ Found: ${found.name}`,'ok');
+        document.getElementById('scan-pname').textContent = found.name;
+        document.getElementById('scan-pbrand').textContent = [found.brand,found.category,found.form,found.strength].filter(Boolean).join(' · ');
+        document.getElementById('scan-fetched').style.display = 'block';
+        document.getElementById('scan-name').value = found.name;
+        document.getElementById('scan-brand-val').value = found.brand||'';
+        document.getElementById('scan-cat-val').value = found.category||'';
+        showToast('✅ Found: '+found.name, 'ok');
       } else {
-        document.getElementById('scan-nf').style.display='block';
+        document.getElementById('scan-nf').style.display = 'block';
         showToast('Not in database — enter name manually','wn');
       }
     });
-  }).catch(e=>{
-    showToast('Camera error: '+e.message,'err');
-    stopScanner();
+  }).catch(function(e){
+    showToast('Camera not available: '+e.message,'err');
   });
 }
 
 function stopScanner(){
-  try{ if(zxingReader){ zxingReader.reset(); zxingReader=null; } }catch(e){}
-  if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}
-  const v=document.getElementById('sv');
+  try{ Quagga.stop(); }catch(e){}
+  if(scanStream){ scanStream.getTracks().forEach(function(t){ t.stop(); }); scanStream=null; }
+  var v=document.getElementById('sv');
   v.srcObject=null;
   v.style.display='none';
   document.getElementById('scanner-ph').style.display='flex';
