@@ -471,10 +471,10 @@ body{font-family:"DM Sans",sans-serif;background:var(--g0);color:var(--g8);min-h
 
 <div class="tc3" id="tc3"></div>
 
-<!-- FIREBASE -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+<!-- FIREBASE COMPAT — works on GitHub Pages -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
 
 const firebaseConfig = {
   apiKey: "AIzaSyAseVRjcmbZusyU3NDv7Z84WXZVX7UHu48",
@@ -486,8 +486,8 @@ const firebaseConfig = {
   appId: "1:346409676114:web:3829fe2a42e5b590109e8b"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
 // ── MEDICINE DATABASE 500+ ──
 const MEDICINE_DB={
@@ -672,8 +672,8 @@ try{ const s=JSON.parse(localStorage.getItem('mk-settings')); if(s) settings=s; 
 
 // ── FIREBASE REAL-TIME LISTENER ──
 // This is the key — onValue fires every time data changes on ANY device
-const productsRef = ref(db, 'medikart/products');
-onValue(productsRef, (snapshot) => {
+const productsRef = db.ref("medikart/products");
+productsRef.on("value", (snapshot) => {
   products = [];
   if(snapshot.exists()){
     snapshot.forEach(child => {
@@ -841,7 +841,7 @@ window.confirmSale=async function(){
   const p=products.find(x=>x._key===currentSellId); if(!p) return;
   if(qty>p.qty){showToast(`Only ${p.qty} units in stock!`,'err');return;}
   const newQty=p.qty-qty;
-  await update(ref(db,`medikart/products/${currentSellId}`),{qty:newQty});
+  await db.ref(`medikart/products/${currentSellId}`).update({qty:newQty});
   window.closeSell();
   showToast(`✅ Sold ${qty} unit${qty!==1?'s':''} of ${p.name}. ${newQty} remaining`,'ok');
   if(newQty===0) setTimeout(()=>showToast(`📦 ${p.name} is OUT OF STOCK`,'wn'),700);
@@ -851,7 +851,7 @@ window.confirmSale=async function(){
 // ── DELETE ──
 window.deleteProduct=async function(key,name){
   if(!confirm(`Remove "${name}" from inventory? This cannot be undone.`)) return;
-  await remove(ref(db,`medikart/products/${key}`));
+  await db.ref(`medikart/products/${key}`).remove();
   showToast(`🗑️ ${name} removed`,'ok');
 };
 
@@ -880,14 +880,11 @@ function startScanner(){
     document.getElementById('scan-btn').textContent='⏹ Stop Scanner';
     scanActive=true;
 
-    const votes={};
-    const NEEDED=3;
-
     Quagga.init({
       inputStream:{name:'Live',type:'LiveStream',target:v,constraints:{facingMode:'environment'}},
       decoder:{readers:['ean_reader','ean_8_reader','code_128_reader','upc_reader'],multiple:false},
       locate:true,
-      frequency:15
+      frequency:20
     },err=>{
       if(err){showToast('Camera error. Use manual tab.','err');stopScanner();return;}
       Quagga.start();
@@ -897,22 +894,19 @@ function startScanner(){
       if(scanCooldown) return;
       const code=res.codeResult.code;
 
-      // Confidence check
+      // Only accept EAN-13 (13 digits) or EAN-8 (8 digits) — Indian medicine barcodes
+      if(!/^\d{8}$|^\d{13}$/.test(code)) return;
+
+      // Confidence check — reject blurry reads
       const errCodes=res.codeResult.decodedCodes.filter(c=>c.error!==undefined);
       if(errCodes.length>0){
         const avgErr=errCodes.reduce((s,c)=>s+c.error,0)/errCodes.length;
-        if(avgErr>0.3) return;
+        if(avgErr>0.15) return;
       }
 
-      // Vote system
-      votes[code]=(votes[code]||0)+1;
-      document.getElementById('scan-btn').textContent=`🔄 Confirming... (${votes[code]}/${NEEDED})`;
-      if(votes[code]<NEEDED) return;
-
-      // Confirmed!
+      // Good read — accept immediately
       scanCooldown=true;
-      setTimeout(()=>scanCooldown=false,4000);
-      Object.keys(votes).forEach(k=>delete votes[k]);
+      setTimeout(()=>scanCooldown=false,5000);
       stopScanner();
 
       document.getElementById('scan-bc-val').value=code;
@@ -963,8 +957,8 @@ window.addFromScan=async function(){
   if(!expiry){showToast('Select expiry month and year','err');return;}
   if(qty<1){showToast('Enter a valid quantity','err');return;}
   const bc=document.getElementById('scan-bc-val').value;
-  const newRef=push(ref(db,'medikart/products'));
-  await set(newRef,{
+  const newRef=db.ref("medikart/products").push();
+  await newRef.set({
     name, expiry, barcode:bc||'—',
     brand:document.getElementById('scan-brand-val').value||'',
     category:document.getElementById('scan-cat-val').value||'',
@@ -1013,8 +1007,8 @@ window.addManual=async function(){
   if(!name){showToast('Enter medicine name','err');return;}
   if(!expiry){showToast('Select expiry month and year','err');return;}
   if(qty<1){showToast('Enter a valid quantity','err');return;}
-  const newRef=push(ref(db,'medikart/products'));
-  await set(newRef,{
+  const newRef=db.ref("medikart/products").push();
+  await newRef.set({
     name, expiry,
     barcode:document.getElementById('m-bc').value.trim()||'—',
     brand:'', category:'',
@@ -1096,7 +1090,7 @@ window.exportData=function(){
 
 window.clearAll=async function(){
   if(!confirm('⚠️ Delete ALL medicines from Firebase? Cannot be undone.')) return;
-  await remove(ref(db,'medikart/products'));
+  await db.ref("medikart/products").remove();
   showToast('All data cleared','wn');
 };
 
