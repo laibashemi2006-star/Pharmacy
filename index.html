@@ -3,437 +3,426 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sentinel Auditor — MediKart</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>MediKart — Sentinel Auditor</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<!-- ZXing - most reliable mobile barcode library -->
+<script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
 <style>
+*{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --b8:#0d2044;--b7:#0f3460;--b6:#1565c0;--b5:#1976d2;--b4:#42a5f5;
-  --b3:#90caf9;--b1:#e3f2fd;--b0:#f0f8ff;
-  --w:#fff;--g0:#f8fafc;--g1:#f1f5f9;--g2:#e2e8f0;--g4:#94a3b8;--g6:#475569;--g8:#1e293b;
-  --ex:#c62828;--ex-bg:#ffebee;--ex-bd:#ef9a9a;
-  --cr:#e65100;--cr-bg:#fff3e0;--cr-bd:#ffcc80;
-  --wa:#f9a825;--wa-bg:#fffde7;--wa-bd:#fff176;
-  --sa:#2e7d32;--sa-bg:#e8f5e9;--sa-bd:#a5d6a7;
-  --lo:#6a1b9a;--lo-bg:#f3e5f5;--lo-bd:#ce93d8;
-  --ss:0 1px 3px rgba(0,0,0,.08);--sm:0 4px 16px rgba(13,32,68,.10);--sl:0 8px 32px rgba(13,32,68,.18);
-  --r:14px;--rs:8px;
+  --bg:#f0f4f8;--card:#fff;--ink:#0a1628;--ink2:#1e3a5f;
+  --blue:#1565c0;--blue2:#42a5f5;--sky:#e3f2fd;
+  --border:#e2e8f0;--g4:#94a3b8;--g6:#64748b;
+  --red:#b71c1c;--red2:#ffebee;--red3:#ef9a9a;
+  --orange:#e65100;--orange2:#fff3e0;--orange3:#ffcc80;
+  --yellow:#f57f17;--yellow2:#fffde7;--yellow3:#fff176;
+  --green:#1b5e20;--green2:#e8f5e9;--green3:#a5d6a7;
+  --purple:#4a148c;--purple2:#f3e5f5;--purple3:#ce93d8;
 }
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:"DM Sans",sans-serif;background:var(--g0);color:var(--g8);min-height:100vh;}
-.sb{position:fixed;top:0;left:0;width:238px;height:100vh;background:var(--b8);display:flex;flex-direction:column;z-index:100;box-shadow:4px 0 20px rgba(0,0,0,.2);}
-.sb-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:11px;}
-.sb-ic{width:36px;height:36px;background:var(--b4);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
-.sb-name{color:#fff;font-size:15px;font-weight:700;}
-.sb-sub{color:var(--b3);font-size:9px;text-transform:uppercase;letter-spacing:.8px;margin-top:1px;}
-.sb-nav{flex:1;padding:11px 8px;display:flex;flex-direction:column;gap:2px;}
-.ni{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--rs);cursor:pointer;color:var(--b3);font-size:13px;font-weight:500;transition:all .15s;border:none;background:none;width:100%;text-align:left;}
-.ni:hover{background:rgba(255,255,255,.07);color:#fff;}
-.ni.active{background:var(--b6);color:#fff;}
-.ni-ic{font-size:16px;width:18px;text-align:center;}
-.sb-foot{padding:12px 15px;border-top:1px solid rgba(255,255,255,.08);}
-.sb-ph{color:var(--b3);font-size:12px;font-weight:700;}
-.sb-phl{color:rgba(255,255,255,.35);font-size:9px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;}
-.conn{display:flex;align-items:center;gap:6px;margin-top:8px;padding:6px 8px;border-radius:var(--rs);background:rgba(255,255,255,.05);}
-.cdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:all .3s;}
-.cdot.on{background:#4caf50;box-shadow:0 0 5px #4caf50;animation:pu 2s infinite;}
-.cdot.off{background:#f44336;}
-.ctxt{font-size:10px;color:rgba(255,255,255,.45);}
-@keyframes pu{0%,100%{opacity:1;}50%{opacity:.35;}}
-.fb-status{display:flex;align-items:center;gap:6px;margin-top:6px;padding:5px 8px;border-radius:var(--rs);background:rgba(255,255,255,.05);}
-.fb-dot{width:7px;height:7px;border-radius:50%;background:#f44336;flex-shrink:0;}
-.fb-dot.ok{background:#4caf50;box-shadow:0 0 5px #4caf50;animation:pu 2s infinite;}
-.fb-txt{font-size:10px;color:rgba(255,255,255,.45);}
-.main{margin-left:238px;min-height:100vh;}
-.topbar{background:#fff;border-bottom:1px solid var(--g2);padding:0 26px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
-.tb-title{font-size:16px;font-weight:700;color:var(--b8);}
-.tb-r{display:flex;align-items:center;gap:11px;}
-.nb{position:relative;background:var(--b0);border:1px solid #bbdefb;border-radius:var(--rs);width:35px;height:35px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:background .15s;}
-.nb:hover{background:var(--b1);}
-.nbdg{position:absolute;top:-4px;right:-4px;background:var(--ex);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;padding:0 2px;}
-.dchip{background:var(--b0);border:1px solid #bbdefb;border-radius:var(--rs);padding:6px 11px;font-size:11px;font-weight:500;color:var(--b6);font-family:"DM Mono",monospace;}
-.scanbar{background:var(--b7);color:#fff;padding:7px 18px;font-size:12px;font-weight:600;display:none;align-items:center;gap:9px;border-bottom:2px solid var(--b4);}
-.scanbar.on{display:flex;}
-.sp{width:7px;height:7px;border-radius:50%;background:var(--b4);animation:pu 1s infinite;}
-/* Loading overlay */
-.loading-overlay{position:fixed;inset:0;background:var(--b8);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s;}
-.loading-overlay.hide{opacity:0;pointer-events:none;}
-.loading-logo{font-size:42px;margin-bottom:14px;}
-.loading-title{color:#fff;font-size:20px;font-weight:700;margin-bottom:6px;}
-.loading-sub{color:var(--b3);font-size:13px;margin-bottom:24px;}
-.loading-bar{width:200px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden;}
-.loading-fill{height:100%;background:var(--b4);border-radius:2px;animation:lf 1.5s ease infinite;}
-@keyframes lf{0%{width:0;margin-left:0;}50%{width:60%;margin-left:20%;}100%{width:0;margin-left:100%;}}
-.content{padding:22px 26px;}
-.page{display:none;} .page.active{display:block;}
-.sg{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px;}
-.sc{background:#fff;border-radius:var(--r);padding:16px 18px;box-shadow:var(--ss);border:1px solid var(--g2);position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s;}
-.sc:hover{transform:translateY(-2px);box-shadow:var(--sm);}
-.sc::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;}
-.sc.ex::before{background:var(--ex);} .sc.cr::before{background:var(--cr);}
-.sc.wa::before{background:var(--wa);} .sc.sa::before{background:var(--sa);}
-.sc.lo::before{background:var(--lo);}
-.sl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--g4);margin-bottom:6px;}
-.sn{font-size:30px;font-weight:700;letter-spacing:-1px;line-height:1;margin-bottom:2px;}
-.sc.ex .sn{color:var(--ex);} .sc.cr .sn{color:var(--cr);}
-.sc.wa .sn{color:var(--wa);} .sc.sa .sn{color:var(--sa);} .sc.lo .sn{color:var(--lo);}
-.ssub{font-size:10px;color:var(--g4);} .sem{font-size:18px;position:absolute;top:14px;right:14px;opacity:.65;}
-.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;flex-wrap:wrap;gap:7px;}
-.shtl{font-size:13px;font-weight:700;color:var(--b8);}
-.fr{display:flex;gap:5px;flex-wrap:wrap;}
-.fb{padding:4px 11px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid var(--g2);background:#fff;color:var(--g6);transition:all .15s;}
-.fb:hover,.fb.active{border-color:var(--b5);background:var(--b5);color:#fff;}
-.pl{display:flex;flex-direction:column;gap:8px;}
-.pc{background:#fff;border-radius:var(--r);padding:13px 16px;border:1.5px solid var(--g2);display:flex;align-items:center;gap:12px;box-shadow:var(--ss);transition:all .15s;animation:si .25s ease;flex-wrap:wrap;}
-@keyframes si{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);}}
-.pc:hover{border-color:var(--b3);box-shadow:var(--sm);}
-.pc.ex{border-color:var(--ex-bd);background:var(--ex-bg);}
-.pc.cr{border-color:var(--cr-bd);background:var(--cr-bg);}
-.pc.wa{border-color:var(--wa-bd);background:var(--wa-bg);}
-.pc.lo{border-color:var(--lo-bd);background:var(--lo-bg);}
-.sdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
-.sdot.ex{background:var(--ex);box-shadow:0 0 5px var(--ex);}
-.sdot.cr{background:var(--cr);box-shadow:0 0 5px var(--cr);}
-.sdot.wa{background:var(--wa);} .sdot.sa{background:var(--sa);} .sdot.lo{background:var(--lo);}
-.pi{flex:1;min-width:140px;}
-.pn{font-size:14px;font-weight:700;color:var(--g8);margin-bottom:2px;}
-.pm{font-size:11px;color:var(--g4);display:flex;gap:11px;flex-wrap:wrap;}
-.pbdg{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
-.bdg{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;}
-.bdg.ex{background:var(--ex);color:#fff;} .bdg.cr{background:var(--cr);color:#fff;}
-.bdg.wa{background:var(--wa);color:#fff;} .bdg.sa{background:var(--sa);color:#fff;}
-.bdg.lo{background:var(--lo);color:#fff;}
-.qbdg{background:var(--b1);color:var(--b6);padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;font-family:"DM Mono",monospace;}
-.ca{display:flex;gap:6px;flex-wrap:wrap;}
-.btn{padding:7px 13px;border-radius:var(--rs);font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;font-family:"DM Sans",sans-serif;}
-.btn-p{background:var(--b5);color:#fff;} .btn-p:hover{background:var(--b6);}
-.btn-d{background:var(--ex-bg);color:var(--ex);border:1.5px solid var(--ex-bd);}
-.btn-d:hover{background:var(--ex);color:#fff;}
-.btn-o{background:#fff;color:var(--b6);border:1.5px solid var(--b3);}
-.btn-o:hover{background:var(--b0);}
-.btn-s{background:var(--sa-bg);color:var(--sa);border:1.5px solid var(--sa-bd);}
-.btn-s:hover{background:var(--sa);color:#fff;}
-.btn-g{background:transparent;color:var(--g6);border:1.5px solid var(--g2);}
-.btn-g:hover{background:var(--g1);}
-.mo{position:fixed;inset:0;background:rgba(10,22,40,.65);backdrop-filter:blur(5px);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px;}
-.mo.open{display:flex;}
-.md{background:#fff;border-radius:var(--r);width:100%;max-width:440px;box-shadow:var(--sl);animation:mi .2s ease;}
-@keyframes mi{from{opacity:0;transform:scale(.95) translateY(8px);}to{opacity:1;transform:scale(1) translateY(0);}}
-.mh{padding:18px 20px 13px;border-bottom:1px solid var(--g2);display:flex;align-items:center;justify-content:space-between;}
-.mt{font-size:15px;font-weight:700;color:var(--b8);}
-.mx{background:var(--g1);border:none;width:27px;height:27px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
-.mx:hover{background:var(--g2);}
-.mb{padding:17px 20px;}
-.mf{padding:13px 20px;border-top:1px solid var(--g2);display:flex;gap:8px;justify-content:flex-end;}
-.sell-name{font-size:18px;font-weight:700;color:var(--b8);margin-bottom:3px;}
-.sell-meta{font-size:11px;color:var(--g4);margin-bottom:14px;line-height:1.6;}
-.sell-stock{background:var(--b0);border:1px solid #bbdefb;border-radius:var(--rs);padding:11px 15px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;}
-.sell-sl{font-size:12px;color:var(--g6);font-weight:500;}
-.sell-sv{font-size:24px;font-weight:700;color:var(--b6);font-family:"DM Mono",monospace;}
-.sell-warn{border-radius:var(--rs);padding:8px 12px;margin-bottom:12px;font-size:12px;font-weight:600;display:none;}
-.sell-warn.ex-w{background:var(--ex-bg);color:var(--ex);border:1px solid var(--ex-bd);}
-.sell-warn.cr-w{background:var(--cr-bg);color:var(--cr);border:1px solid var(--cr-bd);}
-.sell-ql{font-size:13px;font-weight:700;color:var(--g8);margin-bottom:7px;display:block;}
-.sell-qi{width:100%;padding:13px;border:2px solid var(--b3);border-radius:var(--rs);font-size:22px;font-weight:700;font-family:"DM Mono",monospace;text-align:center;color:var(--b8);outline:none;transition:border-color .15s;}
-.sell-qi:focus{border-color:var(--b5);}
-.fg{margin-bottom:13px;}
-.fl{display:block;font-size:11px;font-weight:700;color:var(--g6);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;}
-.fi{width:100%;padding:9px 11px;border:1.5px solid var(--g2);border-radius:var(--rs);font-size:13px;font-family:"DM Sans",sans-serif;color:var(--g8);background:#fff;transition:border-color .15s;outline:none;}
-.fi:focus{border-color:var(--b4);}
-.fr2{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
-.fhint{font-size:10px;color:var(--g4);margin-top:3px;}
-.scanner-box{position:relative;width:100%;border-radius:var(--r);overflow:hidden;background:#000;aspect-ratio:4/3;margin-bottom:11px;}
-#sv{width:100%;height:100%;object-fit:cover;display:none;}
-.scanner-ph{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#fff;text-align:center;padding:20px;}
-.scanner-ov{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;display:none;}
-.scanner-fr{width:58%;aspect-ratio:1;border:2px solid var(--b4);border-radius:7px;box-shadow:0 0 0 2000px rgba(0,0,0,.42);position:relative;}
-.scanner-ln{position:absolute;top:0;left:0;right:0;height:2px;background:var(--b4);animation:scl 1.5s linear infinite;box-shadow:0 0 7px var(--b4);}
-@keyframes scl{0%{top:0;}100%{top:100%;}}
-.fetched{background:var(--b0);border:1px solid #bbdefb;border-radius:var(--rs);padding:10px 13px;margin-bottom:12px;}
-.fetched-n{font-size:13px;font-weight:700;color:var(--b8);}
-.fetched-b{font-size:11px;color:var(--g4);margin-top:1px;}
-.notfound{background:var(--wa-bg);border:1px solid var(--wa-bd);border-radius:var(--rs);padding:10px 13px;margin-bottom:12px;font-size:12px;color:var(--cr);font-weight:600;}
-.tabs{display:flex;border-bottom:2px solid var(--g2);margin-bottom:16px;}
-.tab{padding:9px 18px;font-size:12px;font-weight:600;color:var(--g4);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;}
-.tab.active{color:var(--b6);border-bottom-color:var(--b5);}
-.tc{display:none;} .tc.active{display:block;}
-.np{position:fixed;top:58px;right:0;width:310px;height:calc(100vh - 58px);background:#fff;border-left:1px solid var(--g2);box-shadow:var(--sl);z-index:200;transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column;}
-.np.open{transform:translateX(0);}
-.np-h{padding:15px 17px;border-bottom:1px solid var(--g2);display:flex;align-items:center;justify-content:space-between;}
-.np-t{font-size:13px;font-weight:700;color:var(--b8);}
-.np-list{flex:1;overflow-y:auto;padding:9px;display:flex;flex-direction:column;gap:6px;}
-.ni2{padding:10px 12px;border-radius:var(--rs);border-left:3px solid;}
-.ni2.ex{border-color:var(--ex);background:var(--ex-bg);}
-.ni2.cr{border-color:var(--cr);background:var(--cr-bg);}
-.ni2.wa{border-color:var(--wa);background:var(--wa-bg);}
-.ni2.lo{border-color:var(--lo);background:var(--lo-bg);}
-.ni2-t{font-size:12px;font-weight:700;color:var(--g8);margin-bottom:1px;}
-.ni2-s{font-size:11px;color:var(--g6);}
-.ag{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
-.ac{background:#fff;border-radius:var(--r);padding:17px 19px;border:1px solid var(--g2);box-shadow:var(--ss);}
-.act{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--g4);margin-bottom:11px;}
-.la{font-size:28px;font-weight:700;color:var(--ex);letter-spacing:-1px;margin-bottom:2px;font-family:"DM Mono",monospace;}
-.las{font-size:11px;color:var(--g4);}
-.tl{display:flex;flex-direction:column;gap:8px;}
-.ti{display:flex;align-items:center;gap:8px;}
-.tr{width:19px;height:19px;background:var(--b1);color:var(--b6);border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.tn{font-size:12px;font-weight:600;flex:1;color:var(--g8);}
-.tc2{font-size:11px;color:var(--g4);font-family:"DM Mono",monospace;}
-.pb{height:3px;background:var(--g2);border-radius:2px;margin-top:4px;overflow:hidden;}
-.pf{height:100%;background:var(--b5);border-radius:2px;transition:width .5s ease;}
-.ss2{background:#fff;border-radius:var(--r);padding:18px 20px;border:1px solid var(--g2);box-shadow:var(--ss);max-width:480px;margin-bottom:14px;}
-.ss2-t{font-size:12px;font-weight:700;color:var(--b8);margin-bottom:12px;padding-bottom:9px;border-bottom:1px solid var(--g2);}
-.sr{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--g2);}
-.sr:last-child{border-bottom:none;}
-.sr-l{font-size:12px;font-weight:600;color:var(--g8);}
-.sr-s{font-size:10px;color:var(--g4);margin-top:1px;}
-.flask-row{display:flex;gap:7px;margin-top:7px;}
-.flask-in{flex:1;padding:8px 11px;border:1.5px solid var(--g2);border-radius:var(--rs);font-size:12px;font-family:"DM Mono",monospace;outline:none;transition:border-color .15s;}
-.flask-in:focus{border-color:var(--b4);}
-.srch{position:relative;margin-bottom:13px;}
-.srch-i{width:100%;padding:8px 11px 8px 34px;border:1.5px solid var(--g2);border-radius:var(--rs);font-size:13px;font-family:"DM Sans",sans-serif;outline:none;transition:border-color .15s;background:#fff;}
-.srch-i:focus{border-color:var(--b4);}
-.srch-ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--g4);}
-.es{text-align:center;padding:52px 20px;}
-.es-ic{font-size:48px;margin-bottom:12px;}
-.es-t{font-size:15px;font-weight:700;color:var(--g6);margin-bottom:5px;}
-.es-s{font-size:12px;color:var(--g4);line-height:1.6;max-width:260px;margin:0 auto 16px;}
-.tc3{position:fixed;bottom:18px;right:18px;z-index:2000;display:flex;flex-direction:column;gap:7px;}
-.toast{background:var(--b8);color:#fff;padding:11px 15px;border-radius:var(--rs);font-size:12px;font-weight:600;box-shadow:var(--sl);display:flex;align-items:center;gap:8px;animation:toa .25s ease;max-width:290px;line-height:1.4;}
-@keyframes toa{from{opacity:0;transform:translateX(14px);}to{opacity:1;transform:translateX(0);}}
-.toast.ok{background:var(--sa);} .toast.err{background:var(--ex);}
-.toast.wn{background:var(--cr);} .toast.inf{background:var(--b6);}
-.spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;}
-@keyframes sp{to{transform:rotate(360deg);}}
-.bcd{background:var(--b8);color:var(--b3);font-family:"DM Mono",monospace;font-size:16px;font-weight:700;text-align:center;padding:12px;border-radius:var(--rs);margin-bottom:14px;letter-spacing:2px;}
-.exp-row{display:flex;gap:6px;}
-.exp-row select{flex:1;padding:9px 8px;border:1.5px solid var(--g2);border-radius:var(--rs);font-size:13px;font-family:"DM Sans",sans-serif;color:var(--g8);background:#fff;outline:none;cursor:pointer;}
-.exp-row select:focus{border-color:var(--b4);}
-@media(max-width:900px){
-  .sb{width:54px;}
-  .ni span:not(.ni-ic){display:none;}
-  .sb-name,.sb-sub,.sb-ph,.sb-phl,.ctxt,.fb-txt{display:none;}
-  .sb-logo{justify-content:center;padding:14px 8px;}
-  .main{margin-left:54px;}
-  .sg{grid-template-columns:1fr 1fr;}
-  .ag{grid-template-columns:1fr;}
-  .content{padding:14px;}
-  .fr2{grid-template-columns:1fr;}
+body{font-family:"DM Sans",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;display:flex}
+
+/* SIDEBAR */
+.sb{width:210px;min-height:100vh;background:var(--ink);position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column;z-index:100}
+.sb-brand{padding:20px 16px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-logo{display:flex;align-items:center;gap:10px}
+.sb-icon{width:34px;height:34px;background:var(--blue2);border-radius:8px;display:grid;place-items:center;font-size:17px;flex-shrink:0}
+.sb-name{font-family:"Syne",sans-serif;color:#fff;font-size:14px;font-weight:700}
+.sb-sub{color:var(--blue2);font-size:9px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;margin-top:1px}
+.sb-nav{flex:1;padding:8px 6px;display:flex;flex-direction:column;gap:1px}
+.nb{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:8px;border:none;background:none;color:rgba(255,255,255,.5);font-size:12px;font-weight:500;cursor:pointer;width:100%;text-align:left;transition:all .15s;font-family:"DM Sans",sans-serif}
+.nb:hover{background:rgba(255,255,255,.07);color:rgba(255,255,255,.9)}
+.nb.on{background:var(--blue);color:#fff}
+.ni{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.sb-foot{padding:10px 12px;border-top:1px solid rgba(255,255,255,.08)}
+.pill{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,.05);margin-bottom:5px}
+.dot{width:7px;height:7px;border-radius:50%;background:#f44336;flex-shrink:0;transition:background .4s}
+.dot.ok{background:#4caf50;box-shadow:0 0 7px #4caf50;animation:pulse 2s infinite}
+.pt{font-size:10px;color:rgba(255,255,255,.4)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* MAIN */
+.main{margin-left:210px;flex:1;min-height:100vh;display:flex;flex-direction:column}
+.topbar{background:#fff;border-bottom:1.5px solid var(--border);height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 22px;position:sticky;top:0;z-index:50}
+.tb-title{font-family:"Syne",sans-serif;font-size:14px;font-weight:700}
+.tb-right{display:flex;align-items:center;gap:8px}
+.dchip{background:var(--sky);color:var(--blue);font-size:10px;font-weight:600;padding:4px 10px;border-radius:6px;font-family:"DM Mono",monospace}
+.nb-btn{position:relative;width:32px;height:32px;border-radius:8px;border:1.5px solid var(--border);background:#fff;display:grid;place-items:center;cursor:pointer;font-size:14px}
+.nb-badge{position:absolute;top:-5px;right:-5px;background:var(--red);color:#fff;font-size:8px;font-weight:700;min-width:14px;height:14px;border-radius:7px;display:flex;align-items:center;justify-content:center;border:2px solid #fff}
+
+/* ESP scan bar */
+.esp-bar{background:var(--ink2);color:#fff;padding:6px 22px;font-size:11px;font-weight:600;display:none;align-items:center;gap:8px}
+.esp-bar.on{display:flex}
+.esp-pulse{width:6px;height:6px;border-radius:50%;background:var(--blue2);animation:pulse 1s infinite;flex-shrink:0}
+
+.content{padding:18px 22px;flex:1}
+.page{display:none}
+.page.on{display:block;animation:fi .18s ease}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-bottom:18px}
+.st{background:#fff;border-radius:12px;padding:13px 15px;border:1.5px solid var(--border);position:relative;overflow:hidden}
+.st::after{content:"";position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0}
+.st.r::after{background:var(--red)}.st.o::after{background:var(--orange)}.st.y::after{background:var(--yellow)}.st.g::after{background:var(--green)}.st.p::after{background:var(--purple)}
+.st-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--g4);margin-bottom:4px}
+.st-n{font-family:"Syne",sans-serif;font-size:28px;font-weight:800;line-height:1}
+.st.r .st-n{color:var(--red)}.st.o .st-n{color:var(--orange)}.st.y .st-n{color:var(--yellow)}.st.g .st-n{color:var(--green)}.st.p .st-n{color:var(--purple)}
+.st-s{font-size:9px;color:var(--g4);margin-top:1px}
+.st-em{position:absolute;top:11px;right:11px;font-size:16px;opacity:.4}
+
+/* SECTION */
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;flex-wrap:wrap;gap:5px}
+.stitle{font-family:"Syne",sans-serif;font-size:13px;font-weight:700}
+.filters{display:flex;gap:3px;flex-wrap:wrap}
+.fb{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:#fff;color:var(--g6);transition:all .12s}
+.fb.on,.fb:hover{border-color:var(--blue);background:var(--blue);color:#fff}
+
+/* CARDS */
+.cards{display:flex;flex-direction:column;gap:6px}
+.card{background:#fff;border-radius:12px;padding:11px 14px;border:1.5px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;transition:border-color .15s}
+.card:hover{border-color:var(--blue2)}
+.card.r{border-color:var(--red3);background:var(--red2)}.card.o{border-color:var(--orange3);background:var(--orange2)}.card.y{border-color:var(--yellow3);background:var(--yellow2)}.card.p{border-color:var(--purple3);background:var(--purple2)}
+.cdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cdot.r{background:var(--red);box-shadow:0 0 5px var(--red)}.cdot.o{background:var(--orange)}.cdot.y{background:var(--yellow)}.cdot.g{background:var(--green)}.cdot.p{background:var(--purple)}
+.ci{flex:1;min-width:110px}
+.cn{font-size:13px;font-weight:700;margin-bottom:2px}
+.cm{font-size:10px;color:var(--g4);display:flex;gap:8px;flex-wrap:wrap}
+.cbadges{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.bdg{padding:2px 7px;border-radius:20px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.2px}
+.bdg.r{background:var(--red);color:#fff}.bdg.o{background:var(--orange);color:#fff}.bdg.y{background:var(--yellow);color:#fff}.bdg.g{background:var(--green);color:#fff}.bdg.p{background:var(--purple);color:#fff}
+.qbdg{background:var(--sky);color:var(--blue);padding:2px 7px;border-radius:20px;font-size:9px;font-weight:700;font-family:"DM Mono",monospace}
+.cact{display:flex;gap:4px}
+
+/* BUTTONS */
+.btn{padding:7px 12px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;border:none;font-family:"DM Sans",sans-serif;transition:all .12s}
+.btn-p{background:var(--blue);color:#fff}.btn-p:hover{background:var(--ink2)}
+.btn-d{background:var(--red2);color:var(--red);border:1.5px solid var(--red3)}.btn-d:hover{background:var(--red);color:#fff}
+.btn-o{background:#fff;color:var(--blue);border:1.5px solid var(--blue2)}.btn-o:hover{background:var(--sky)}
+.btn-g{background:#fff;color:var(--g6);border:1.5px solid var(--border)}.btn-g:hover{background:var(--bg)}
+.btn-big{padding:11px;width:100%;font-size:13px}
+.btn-sell{background:var(--green2);color:var(--green);border:1.5px solid var(--green3);font-size:10px;padding:4px 9px}
+
+/* SEARCH */
+.srch{position:relative;margin-bottom:11px}
+.srch input{width:100%;padding:8px 12px 8px 32px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:"DM Sans",sans-serif;outline:none;background:#fff}
+.srch input:focus{border-color:var(--blue2)}
+.srch-ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--g4)}
+
+/* REGISTER FORM */
+.fw{max-width:480px}
+.tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:14px}
+.tab{padding:8px 15px;font-size:12px;font-weight:600;color:var(--g4);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .12s}
+.tab.on{color:var(--blue);border-bottom-color:var(--blue)}
+.tp{display:none}.tp.on{display:block}
+.field{margin-bottom:11px}
+.field label{display:block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--g6);margin-bottom:3px}
+.field input,.field select{width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:"DM Sans",sans-serif;color:var(--ink);background:#fff;outline:none}
+.field input:focus,.field select:focus{border-color:var(--blue2)}
+.fr2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.exp-row{display:flex;gap:5px}
+.exp-row select{flex:1}
+.fhint{font-size:9px;color:var(--g4);margin-top:2px}
+
+/* SCANNER */
+.scan-box{border-radius:12px;overflow:hidden;background:#000;aspect-ratio:4/3;margin-bottom:9px;position:relative;max-width:100%}
+#vid{width:100%;height:100%;object-fit:cover;display:none}
+.scan-ph{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#fff;text-align:center;padding:16px;gap:6px}
+.scan-ph .ico{font-size:38px}
+.scan-ph p{font-size:11px;opacity:.55}
+.scan-ov{position:absolute;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none}
+.scan-fr{width:54%;aspect-ratio:1;border:2px solid #42a5f5;border-radius:8px;position:relative;box-shadow:0 0 0 2000px rgba(0,0,0,.45)}
+.scan-ln{position:absolute;left:0;right:0;height:2px;background:#42a5f5;box-shadow:0 0 8px #42a5f5;animation:sl 1.8s ease-in-out infinite}
+@keyframes sl{0%{top:4px}100%{top:calc(100% - 4px)}}
+.scan-status{background:rgba(0,0,0,.6);color:#fff;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;position:absolute;bottom:10px;left:50%;transform:translateX(-50%);white-space:nowrap}
+
+.fetched-bx{background:var(--sky);border:1px solid #bbdefb;border-radius:8px;padding:9px 12px;margin-bottom:10px}
+.fetched-name{font-size:13px;font-weight:700}
+.fetched-sub{font-size:10px;color:var(--g4);margin-top:1px}
+.nf-bx{background:var(--orange2);border:1px solid var(--orange3);border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:11px;color:var(--orange);font-weight:600}
+.bc-disp{background:var(--ink);color:var(--blue2);font-family:"DM Mono",monospace;font-size:14px;font-weight:700;text-align:center;padding:10px;border-radius:8px;margin-bottom:10px;letter-spacing:2px}
+
+/* ANALYTICS */
+.ag{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.ac{background:#fff;border-radius:12px;padding:15px 17px;border:1.5px solid var(--border)}
+.at{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--g4);margin-bottom:8px}
+.abig{font-family:"Syne",sans-serif;font-size:26px;font-weight:800;color:var(--red);letter-spacing:-1px}
+.asub{font-size:9px;color:var(--g4);margin-top:1px}
+.alist{display:flex;flex-direction:column;gap:6px}
+.ai{display:flex;align-items:center;gap:6px}
+.an{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:9px;font-weight:700;flex-shrink:0}
+.al{font-size:11px;font-weight:600;flex:1}
+.av{font-size:10px;color:var(--g4);font-family:"DM Mono",monospace}
+.abar-w{height:3px;background:var(--border);border-radius:2px;margin-top:2px;overflow:hidden}
+.abar{height:100%;background:var(--blue);border-radius:2px;transition:width .5s}
+
+/* SETTINGS */
+.sc{background:#fff;border-radius:12px;padding:15px 17px;border:1.5px solid var(--border);max-width:450px;margin-bottom:11px}
+.sc-title{font-family:"Syne",sans-serif;font-size:12px;font-weight:700;margin-bottom:11px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+.sr{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)}
+.sr:last-child{border-bottom:none}
+.sl{font-size:12px;font-weight:600}.ss{font-size:9px;color:var(--g4);margin-top:1px}
+.si{width:60px;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;text-align:center;font-family:"DM Mono",monospace;outline:none}
+.fi-row{display:flex;gap:5px;margin-top:5px}
+.fi{flex:1;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font-size:11px;font-family:"DM Mono",monospace;outline:none}
+.fi:focus{border-color:var(--blue2)}
+.conn-row{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:10px;color:var(--g6)}
+
+/* SELL MODAL */
+.mbg{position:fixed;inset:0;background:rgba(10,22,40,.65);backdrop-filter:blur(4px);z-index:1000;display:none;align-items:center;justify-content:center;padding:14px}
+.mbg.on{display:flex}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:pi .17s ease}
+@keyframes pi{from{opacity:0;transform:scale(.93)}to{opacity:1;transform:scale(1)}}
+.mh{padding:14px 17px 11px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.mt{font-family:"Syne",sans-serif;font-size:13px;font-weight:700}
+.mc{width:24px;height:24px;border-radius:50%;border:none;background:var(--bg);cursor:pointer;font-size:12px;display:grid;place-items:center}
+.mb{padding:15px 17px}
+.mf{padding:9px 17px 13px;display:flex;gap:6px;justify-content:flex-end}
+.sn{font-size:16px;font-weight:700;margin-bottom:2px}
+.sm{font-size:10px;color:var(--g4);margin-bottom:11px;line-height:1.5}
+.stk-bx{background:var(--sky);border:1px solid #bbdefb;border-radius:8px;padding:9px 13px;margin-bottom:11px;display:flex;justify-content:space-between;align-items:center}
+.stk-l{font-size:10px;color:var(--g6);font-weight:500}
+.stk-n{font-family:"Syne",sans-serif;font-size:22px;font-weight:800;color:var(--blue)}
+.sw{border-radius:8px;padding:6px 10px;margin-bottom:9px;font-size:11px;font-weight:600}
+.sw.r{background:var(--red2);color:var(--red);border:1px solid var(--red3)}
+.sw.o{background:var(--orange2);color:var(--orange);border:1px solid var(--orange3)}
+.qi{width:100%;padding:11px;border:2px solid var(--blue2);border-radius:8px;font-size:20px;font-weight:700;font-family:"DM Mono",monospace;text-align:center;color:var(--ink);outline:none}
+.qi:focus{border-color:var(--blue)}
+.ql{font-size:11px;font-weight:700;margin-bottom:5px;display:block}
+
+/* NOTIF */
+.np{position:fixed;top:52px;right:0;width:290px;height:calc(100vh - 52px);background:#fff;border-left:1px solid var(--border);z-index:200;transform:translateX(100%);transition:transform .22s ease;display:flex;flex-direction:column}
+.np.on{transform:translateX(0)}
+.nh{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.nt{font-family:"Syne",sans-serif;font-size:12px;font-weight:700}
+.nl{flex:1;overflow-y:auto;padding:7px;display:flex;flex-direction:column;gap:4px}
+.ni-item{padding:8px 10px;border-radius:8px;border-left:3px solid}
+.ni-item.r{border-color:var(--red);background:var(--red2)}.ni-item.o{border-color:var(--orange);background:var(--orange2)}.ni-item.y{border-color:var(--yellow);background:var(--yellow2)}.ni-item.p{border-color:var(--purple);background:var(--purple2)}
+.nit{font-size:11px;font-weight:700;margin-bottom:1px}
+.nis{font-size:9px;color:var(--g6)}
+
+/* TOAST */
+.toasts{position:fixed;bottom:14px;right:14px;z-index:2000;display:flex;flex-direction:column;gap:5px;pointer-events:none}
+.toast{background:var(--ink);color:#fff;padding:9px 13px;border-radius:8px;font-size:11px;font-weight:600;max-width:270px;line-height:1.4;animation:ti .2s ease;box-shadow:0 4px 18px rgba(0,0,0,.22)}
+.toast.ok{background:#1b5e20}.toast.err{background:var(--red)}.toast.warn{background:var(--orange)}.toast.info{background:var(--blue)}
+@keyframes ti{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+.spin{display:inline-block;width:10px;height:10px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* EMPTY */
+.empty{text-align:center;padding:44px 18px}
+.ei{font-size:42px;margin-bottom:9px}
+.et{font-family:"Syne",sans-serif;font-size:13px;font-weight:700;color:var(--g6);margin-bottom:3px}
+.es{font-size:10px;color:var(--g4);line-height:1.6;max-width:220px;margin:0 auto 12px}
+
+/* LOADING */
+.loading{position:fixed;inset:0;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s}
+.loading.hide{opacity:0;pointer-events:none}
+.li{font-size:42px;margin-bottom:12px}
+.lt{font-family:"Syne",sans-serif;color:#fff;font-size:19px;font-weight:800;margin-bottom:4px}
+.ls{color:rgba(255,255,255,.4);font-size:11px;margin-bottom:20px}
+.lbw{width:170px;height:3px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+.lb{height:100%;background:var(--blue2);border-radius:2px;animation:lb 1.4s ease infinite}
+@keyframes lb{0%{width:0;margin-left:0}50%{width:55%;margin-left:15%}100%{width:0;margin-left:100%}}
+
+@media(max-width:820px){
+  .sb{width:50px}
+  .sb-name,.sb-sub,.pt,.sc-title{display:none}
+  .sb-logo{justify-content:center}
+  .nb span:not(.ni){display:none}
+  .nb{justify-content:center;padding:10px}
+  .main{margin-left:50px}
+  .stats{grid-template-columns:1fr 1fr}
+  .ag{grid-template-columns:1fr}
+  .content{padding:12px}
+  .fr2{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
-<!-- LOADING -->
-<div class="loading-overlay" id="loading">
-  <div class="loading-logo">🛡️</div>
-  <div class="loading-title">Sentinel Auditor</div>
-  <div class="loading-sub">Connecting to MediKart database...</div>
-  <div class="loading-bar"><div class="loading-fill"></div></div>
+<div class="loading" id="ld">
+  <div class="li">🛡️</div>
+  <div class="lt">MediKart</div>
+  <div class="ls">Connecting to Firebase...</div>
+  <div class="lbw"><div class="lb"></div></div>
 </div>
 
-<!-- SIDEBAR -->
 <div class="sb">
-  <div class="sb-logo">
-    <div class="sb-ic">🛡️</div>
-    <div><div class="sb-name">Sentinel Auditor</div><div class="sb-sub">MediKart</div></div>
+  <div class="sb-brand">
+    <div class="sb-logo">
+      <div class="sb-icon">🛡️</div>
+      <div><div class="sb-name">Sentinel</div><div class="sb-sub">MediKart</div></div>
+    </div>
   </div>
   <nav class="sb-nav">
-    <button class="ni active" onclick="showPage('dashboard')"><span class="ni-ic">📊</span><span>Dashboard</span></button>
-    <button class="ni" onclick="showPage('inventory')"><span class="ni-ic">📦</span><span>Inventory</span></button>
-    <button class="ni" onclick="showPage('register')"><span class="ni-ic">➕</span><span>Register Medicine</span></button>
-    <button class="ni" onclick="showPage('analytics')"><span class="ni-ic">📈</span><span>Analytics</span></button>
-    <button class="ni" onclick="showPage('settings')"><span class="ni-ic">⚙️</span><span>Settings</span></button>
+    <button class="nb on" onclick="nav('dashboard',this)"><span class="ni">📊</span><span>Dashboard</span></button>
+    <button class="nb" onclick="nav('inventory',this)"><span class="ni">📦</span><span>Inventory</span></button>
+    <button class="nb" onclick="nav('register',this)"><span class="ni">➕</span><span>Register</span></button>
+    <button class="nb" onclick="nav('analytics',this)"><span class="ni">📈</span><span>Analytics</span></button>
+    <button class="nb" onclick="nav('settings',this)"><span class="ni">⚙️</span><span>Settings</span></button>
   </nav>
   <div class="sb-foot">
-    <div class="sb-phl">Pharmacy</div>
-    <div class="sb-ph">MediKart</div>
-    <div class="fb-status">
-      <div class="fb-dot" id="fb-dot"></div>
-      <div class="fb-txt" id="fb-txt">Connecting...</div>
-    </div>
-    <div class="conn">
-      <div class="cdot off" id="cdot"></div>
-      <div class="ctxt" id="ctxt">ESP32 Offline</div>
-    </div>
+    <div class="pill"><div class="dot" id="fb-dot"></div><div class="pt" id="fb-txt">Firebase...</div></div>
+    <div class="pill"><div class="dot" id="esp-dot"></div><div class="pt" id="esp-txt">ESP32 Offline</div></div>
   </div>
 </div>
 
-<div class="scanbar" id="scanbar">
-  <div class="sp"></div>
-  <span id="scanbar-txt">ESP32 scan detected...</span>
-</div>
-
-<!-- MAIN -->
 <div class="main">
   <div class="topbar">
-    <div class="tb-title" id="page-title">Dashboard</div>
-    <div class="tb-r">
-      <div class="dchip" id="cur-date"></div>
-      <div class="nb" onclick="toggleNotif()">🔔<div class="nbdg" id="nbdg">0</div></div>
+    <div class="tb-title" id="pg-title">Dashboard</div>
+    <div class="tb-right">
+      <div class="dchip" id="today"></div>
+      <div class="nb-btn" onclick="toggleNotif()">🔔<div class="nb-badge" id="nc">0</div></div>
     </div>
   </div>
+  <div class="esp-bar" id="esp-bar"><div class="esp-pulse"></div><span id="esp-bar-txt">ESP32 scan detected</span></div>
   <div class="content">
 
     <!-- DASHBOARD -->
-    <div class="page active" id="page-dashboard">
-      <div class="sg">
-        <div class="sc ex"><div class="sem">⛔</div><div class="sl">Expired</div><div class="sn" id="s-ex">0</div><div class="ssub">Remove immediately</div></div>
-        <div class="sc cr"><div class="sem">🔴</div><div class="sl">1–3 Days</div><div class="sn" id="s-cr">0</div><div class="ssub">Urgent action</div></div>
-        <div class="sc wa"><div class="sem">🟡</div><div class="sl">4–30 Days</div><div class="sn" id="s-wa">0</div><div class="ssub">Monitor closely</div></div>
-        <div class="sc sa"><div class="sem">✅</div><div class="sl">Safe</div><div class="sn" id="s-sa">0</div><div class="ssub">Good stock</div></div>
-        <div class="sc lo"><div class="sem">📉</div><div class="sl">Low Stock</div><div class="sn" id="s-lo">0</div><div class="ssub">Reorder soon</div></div>
+    <div class="page on" id="pg-dashboard">
+      <div class="stats">
+        <div class="st r"><div class="st-em">⛔</div><div class="st-lbl">Expired</div><div class="st-n" id="s-ex">0</div><div class="st-s">Remove now</div></div>
+        <div class="st o"><div class="st-em">🔴</div><div class="st-lbl">Critical</div><div class="st-n" id="s-cr">0</div><div class="st-s">1–3 days</div></div>
+        <div class="st y"><div class="st-em">🟡</div><div class="st-lbl">Warning</div><div class="st-n" id="s-wa">0</div><div class="st-s">4–30 days</div></div>
+        <div class="st g"><div class="st-em">✅</div><div class="st-lbl">Safe</div><div class="st-n" id="s-sa">0</div><div class="st-s">Good</div></div>
+        <div class="st p"><div class="st-em">📉</div><div class="st-lbl">Low Stock</div><div class="st-n" id="s-lo">0</div><div class="st-s">Reorder</div></div>
       </div>
-      <div class="sh"><div class="shtl">⚠️ Needs Attention</div></div>
-      <div class="pl" id="dash-list"></div>
+      <div class="sh"><div class="stitle">⚠️ Needs Attention</div></div>
+      <div class="cards" id="dash-cards"></div>
     </div>
 
     <!-- INVENTORY -->
-    <div class="page" id="page-inventory">
-      <div class="srch"><span class="srch-ic">🔍</span><input class="srch-i" type="text" placeholder="Search by medicine name or barcode..." oninput="renderInv(this.value)"></div>
+    <div class="page" id="pg-inventory">
+      <div class="srch"><span class="srch-ic">🔍</span><input type="text" placeholder="Search name, barcode, brand..." oninput="renderInv(this.value)"></div>
       <div class="sh">
-        <div class="shtl">All Medicines</div>
-        <div class="fr">
-          <button class="fb active" onclick="setFilter('all',this)">All</button>
-          <button class="fb" onclick="setFilter('ex',this)">Expired</button>
-          <button class="fb" onclick="setFilter('cr',this)">Critical</button>
-          <button class="fb" onclick="setFilter('wa',this)">Warning</button>
-          <button class="fb" onclick="setFilter('sa',this)">Safe</button>
-          <button class="fb" onclick="setFilter('lo',this)">Low Stock</button>
+        <div class="stitle">All Medicines</div>
+        <div class="filters">
+          <button class="fb on" onclick="setFilt('all',this)">All</button>
+          <button class="fb" onclick="setFilt('r',this)">Expired</button>
+          <button class="fb" onclick="setFilt('o',this)">Critical</button>
+          <button class="fb" onclick="setFilt('y',this)">Warning</button>
+          <button class="fb" onclick="setFilt('g',this)">Safe</button>
+          <button class="fb" onclick="setFilt('p',this)">Low Stock</button>
         </div>
       </div>
-      <div class="pl" id="inv-list"></div>
+      <div class="cards" id="inv-cards"></div>
     </div>
 
     <!-- REGISTER -->
-    <div class="page" id="page-register">
-      <div style="max-width:520px;">
+    <div class="page" id="pg-register">
+      <div class="fw">
         <div class="tabs">
-          <div class="tab active" onclick="switchTab('tab-scan',this)">📷 Scan Barcode</div>
-          <div class="tab" onclick="switchTab('tab-manual',this)">⌨️ Enter Manually</div>
+          <div class="tab on" onclick="swTab('tp-scan',this)">📷 Scan Barcode</div>
+          <div class="tab" onclick="swTab('tp-manual',this)">⌨️ Manual Entry</div>
         </div>
 
         <!-- SCAN TAB -->
-        <div class="tc active" id="tab-scan">
-          <div class="scanner-box" id="scanner-box">
-            <div class="scanner-ph" id="scanner-ph">
-              <div style="font-size:38px;margin-bottom:9px;">📷</div>
-              <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Camera Barcode Scanner</div>
-              <div style="font-size:11px;opacity:.6;">Tap Start Scanner · Point at barcode · Hold steady</div>
+        <div class="tp on" id="tp-scan">
+          <div class="scan-box">
+            <div class="scan-ph" id="scan-ph">
+              <div class="ico">📷</div>
+              <div style="font-size:13px;font-weight:600;color:#fff">Camera Barcode Scanner</div>
+              <p>Tap Start Scanner · Point at barcode · Hold steady</p>
             </div>
-            <video id="sv" autoplay playsinline muted></video>
-            <div class="scanner-ov" id="scanner-ov"><div class="scanner-fr"><div class="scanner-ln"></div></div></div>
+            <video id="vid" autoplay playsinline muted></video>
+            <div class="scan-ov" id="scan-ov">
+              <div class="scan-fr"><div class="scan-ln"></div></div>
+            </div>
+            <div class="scan-status" id="scan-status" style="display:none"></div>
           </div>
-          <button class="btn btn-p" style="width:100%;margin-bottom:13px;padding:10px;" id="scan-btn" onclick="toggleScanner()">▶ Start Scanner</button>
-          <div id="scan-detected" style="display:none;">
-            <div class="bcd" id="scan-bc-display">—</div>
-            <div id="scan-fetched" class="fetched" style="display:none;">
-              <div class="fetched-n" id="scan-pname">—</div>
-              <div class="fetched-b" id="scan-pbrand">—</div>
+          <button class="btn btn-p btn-big" id="scan-btn" onclick="toggleScan()" style="margin-bottom:11px">▶ Start Scanner</button>
+          <div id="scan-result" style="display:none">
+            <div class="bc-disp" id="bc-disp">—</div>
+            <div class="fetched-bx" id="fetched-bx" style="display:none">
+              <div class="fetched-name" id="f-name">—</div>
+              <div class="fetched-sub" id="f-sub">—</div>
             </div>
-            <div id="scan-nf" class="notfound" style="display:none;">⚠️ Medicine not found in database. Enter name below.</div>
-            <div class="fg"><label class="fl">Medicine Name *</label><input class="fi" type="text" id="scan-name" placeholder="e.g. Crocin 500mg Tablet"></div>
-            <div class="fg">
-              <label class="fl">Expiry Date * <span style="font-weight:400;text-transform:none;letter-spacing:0;">(as printed on box)</span></label>
+            <div class="nf-bx" id="nf-bx" style="display:none">⚠️ Not in database — enter name below</div>
+            <div class="field"><label>Medicine Name *</label><input type="text" id="s-name" placeholder="e.g. Crocin 500mg Tablet"></div>
+            <div class="field">
+              <label>Expiry Date * <span style="font-weight:400;text-transform:none;letter-spacing:0">(as on box)</span></label>
               <div class="exp-row">
-                <select id="scan-exp-m"><option value="">-- Month --</option><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">May</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Aug</option><option value="09">Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option></select>
-                <select id="scan-exp-y"><option value="">-- Year --</option></select>
+                <select id="s-em"><option value="">Month</option><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">May</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Aug</option><option value="09">Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option></select>
+                <select id="s-ey"><option value="">Year</option></select>
               </div>
             </div>
             <div class="fr2">
-              <div class="fg"><label class="fl">Quantity *</label><input class="fi" type="number" id="scan-qty" placeholder="e.g. 50" min="1"></div>
-              <div class="fg"><label class="fl">Shelf Location</label><input class="fi" type="text" id="scan-shelf" placeholder="e.g. A2"></div>
+              <div class="field"><label>Quantity *</label><input type="number" id="s-qty" placeholder="50" min="1"></div>
+              <div class="field"><label>Shelf Location</label><input type="text" id="s-shelf" placeholder="e.g. A2"></div>
             </div>
-            <div class="fg"><label class="fl">Price per unit (₹)</label><input class="fi" type="number" id="scan-price" placeholder="e.g. 30" min="1"></div>
-            <input type="hidden" id="scan-bc-val">
-            <input type="hidden" id="scan-brand-val">
-            <input type="hidden" id="scan-cat-val">
-            <button class="btn btn-p" style="width:100%;padding:10px;" onclick="addFromScan()">✅ Register Medicine</button>
+            <div class="field"><label>Price per unit (₹)</label><input type="number" id="s-price" placeholder="30" min="0"></div>
+            <input type="hidden" id="s-bc"><input type="hidden" id="s-brand"><input type="hidden" id="s-cat">
+            <button class="btn btn-p btn-big" onclick="addScanned()">✅ Register Medicine</button>
           </div>
         </div>
 
         <!-- MANUAL TAB -->
-        <div class="tc" id="tab-manual">
-          <div class="fg">
-            <label class="fl">Barcode Number</label>
-            <div style="display:flex;gap:7px;">
-              <input class="fi" type="text" id="m-bc" placeholder="e.g. 8901138500001" style="flex:1;">
-              <button class="btn btn-o" id="fetch-btn" onclick="fetchManual()">Fetch</button>
+        <div class="tp" id="tp-manual">
+          <div class="field">
+            <label>Barcode (optional — for auto-fill)</label>
+            <div style="display:flex;gap:5px">
+              <input type="text" id="m-bc" placeholder="e.g. 8906052500001" style="flex:1;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;outline:none">
+              <button class="btn btn-o" id="m-fetch-btn" onclick="fetchBC()">Fetch</button>
             </div>
-            <div class="fhint">Enter barcode and click Fetch to auto-fill medicine details</div>
+            <div class="fhint">Enter barcode number → click Fetch to auto-fill name</div>
           </div>
-          <div id="m-fetched" class="fetched" style="display:none;">
-            <div class="fetched-n" id="m-pname">—</div>
-            <div class="fetched-b" id="m-pbrand">—</div>
-          </div>
-          <div id="m-nf" class="notfound" style="display:none;">⚠️ Not found in database. Enter details manually below.</div>
-          <div class="fg"><label class="fl">Medicine Name *</label><input class="fi" type="text" id="m-name" placeholder="e.g. Dolo 650mg Tablet"></div>
-          <div class="fg">
-            <label class="fl">Expiry Date * <span style="font-weight:400;text-transform:none;letter-spacing:0;">(as printed on box)</span></label>
+          <div class="fetched-bx" id="mf-bx" style="display:none"><div class="fetched-name" id="mf-name">—</div><div class="fetched-sub" id="mf-sub">—</div></div>
+          <div class="nf-bx" id="mnf-bx" style="display:none">⚠️ Not found — fill details manually</div>
+          <div class="field"><label>Medicine Name *</label><input type="text" id="m-name" placeholder="e.g. Dolo 650mg Tablet"></div>
+          <div class="field">
+            <label>Expiry Date * <span style="font-weight:400;text-transform:none;letter-spacing:0">(as on box)</span></label>
             <div class="exp-row">
-              <select id="m-exp-m"><option value="">-- Month --</option><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">May</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Aug</option><option value="09">Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option></select>
-              <select id="m-exp-y"><option value="">-- Year --</option></select>
+              <select id="m-em"><option value="">Month</option><option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option><option value="04">Apr</option><option value="05">May</option><option value="06">Jun</option><option value="07">Jul</option><option value="08">Aug</option><option value="09">Sep</option><option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option></select>
+              <select id="m-ey"><option value="">Year</option></select>
             </div>
           </div>
           <div class="fr2">
-            <div class="fg"><label class="fl">Quantity *</label><input class="fi" type="number" id="m-qty" placeholder="50" min="1"></div>
-            <div class="fg"><label class="fl">Shelf Location</label><input class="fi" type="text" id="m-shelf" placeholder="A2"></div>
+            <div class="field"><label>Quantity *</label><input type="number" id="m-qty" placeholder="50" min="1"></div>
+            <div class="field"><label>Shelf Location</label><input type="text" id="m-shelf" placeholder="A2"></div>
           </div>
-          <div class="fg"><label class="fl">Price per unit (₹)</label><input class="fi" type="number" id="m-price" placeholder="30" min="1"></div>
-          <button class="btn btn-p" style="width:100%;padding:10px;" onclick="addManual()">✅ Register Medicine</button>
+          <div class="field"><label>Price per unit (₹)</label><input type="number" id="m-price" placeholder="30" min="0"></div>
+          <button class="btn btn-p btn-big" onclick="addManual()">✅ Register Medicine</button>
         </div>
       </div>
     </div>
 
     <!-- ANALYTICS -->
-    <div class="page" id="page-analytics">
+    <div class="page" id="pg-analytics">
       <div class="ag">
-        <div class="ac"><div class="act">💸 Estimated Loss (Expired)</div><div class="la" id="a-loss">₹0</div><div class="las" id="a-loss-s">from 0 expired medicines</div></div>
-        <div class="ac"><div class="act">📦 Inventory Summary</div><div class="tl" id="a-sum"></div></div>
-        <div class="ac"><div class="act">📉 Low Stock — Reorder Needed</div><div class="tl" id="a-low"></div></div>
-        <div class="ac"><div class="act">🗂️ Stock by Shelf</div><div class="tl" id="a-shelf"></div></div>
-        <div class="ac"><div class="act">🏷️ Stock by Category</div><div class="tl" id="a-cat"></div></div>
-        <div class="ac"><div class="act">⛔ Expired Medicines</div><div class="tl" id="a-exp"></div></div>
+        <div class="ac"><div class="at">💸 Estimated Loss (Expired)</div><div class="abig" id="a-loss">₹0</div><div class="asub" id="a-loss-s">0 expired medicines</div></div>
+        <div class="ac"><div class="at">📦 Status Summary</div><div class="alist" id="a-sum"></div></div>
+        <div class="ac"><div class="at">📉 Low Stock — Reorder</div><div class="alist" id="a-low"></div></div>
+        <div class="ac"><div class="at">🗂️ By Shelf</div><div class="alist" id="a-shelf"></div></div>
+        <div class="ac"><div class="at">💊 By Category</div><div class="alist" id="a-cat"></div></div>
+        <div class="ac"><div class="at">⛔ Expired List</div><div class="alist" id="a-exp"></div></div>
       </div>
     </div>
 
     <!-- SETTINGS -->
-    <div class="page" id="page-settings">
-      <div class="ss2">
-        <div class="ss2-t">🔌 ESP32 Flask Server Connection</div>
-        <div style="font-size:12px;color:var(--g6);margin-bottom:10px;line-height:1.6;">Enter your friend's Flask server URL. If using ngrok: <span style="font-family:'DM Mono',monospace;background:var(--g1);padding:1px 5px;border-radius:4px;">https://abc123.ngrok.io</span> — if same WiFi: <span style="font-family:'DM Mono',monospace;background:var(--g1);padding:1px 5px;border-radius:4px;">http://192.168.x.x:5000</span></div>
-        <div class="flask-row">
-          <input class="flask-in fi" type="text" id="flask-url" placeholder="http://192.168.1.x:5000" style="flex:1;">
-          <button class="btn btn-p" onclick="saveFlaskURL()">Save</button>
+    <div class="page" id="pg-settings">
+      <div class="sc">
+        <div class="sc-title">🔌 ESP32 Flask Server</div>
+        <div style="font-size:10px;color:var(--g6);margin-bottom:7px;line-height:1.6">Same WiFi: <code style="background:var(--bg);padding:1px 4px;border-radius:3px;font-size:9px">http://192.168.x.x:5000</code></div>
+        <div class="fi-row">
+          <input class="fi" type="text" id="flask-in" placeholder="http://192.168.1.x:5000">
+          <button class="btn btn-p" onclick="saveFlask()">Save</button>
           <button class="btn btn-o" onclick="testFlask()">Test</button>
         </div>
-        <div style="display:flex;align-items:center;gap:7px;margin-top:10px;font-size:11px;color:var(--g6);">
-          <div class="cdot off" id="flask-dot" style="width:8px;height:8px;"></div>
-          <span id="flask-status">Not connected</span>
-        </div>
+        <div class="conn-row"><div class="dot" id="fl-dot" style="width:7px;height:7px"></div><span id="fl-txt">Not connected</span></div>
       </div>
-      <div class="ss2">
-        <div class="ss2-t">⚙️ Alert Settings</div>
-        <div class="sr">
-          <div><div class="sr-l">Low Stock Threshold</div><div class="sr-s">Alert when stock falls below this number</div></div>
-          <input class="fi" type="number" id="low-thresh" style="width:70px;text-align:center;" min="1" max="100">
-        </div>
-        <div class="sr">
-          <div><div class="sr-l">Near Expiry Alert (days)</div><div class="sr-s">Warn when expiry is within this many days</div></div>
-          <input class="fi" type="number" id="exp-days" style="width:70px;text-align:center;" min="1" max="90">
-        </div>
-        <button class="btn btn-p" style="margin-top:12px;" onclick="saveSettingsBtn()">Save Settings</button>
+      <div class="sc">
+        <div class="sc-title">⚙️ Alert Settings</div>
+        <div class="sr"><div><div class="sl">Low Stock Threshold</div><div class="ss">Alert when qty below this</div></div><input class="si" type="number" id="low-in" min="1"></div>
+        <div class="sr"><div><div class="sl">Warning Days</div><div class="ss">Days before expiry to warn</div></div><input class="si" type="number" id="warn-in" min="1"></div>
+        <button class="btn btn-p" style="margin-top:9px" onclick="saveCfg()">Save Settings</button>
       </div>
-      <div class="ss2">
-        <div class="ss2-t">💾 Data Management</div>
-        <div class="sr">
-          <div><div class="sr-l">Export Inventory</div><div class="sr-s">Download all medicines as JSON</div></div>
-          <button class="btn btn-o" onclick="exportData()">Export JSON</button>
-        </div>
-        <div class="sr">
-          <div><div class="sr-l">Clear All Data</div><div class="sr-s">⚠️ Permanently deletes all medicines from Firebase</div></div>
-          <button class="btn btn-d" onclick="clearAll()">Clear All</button>
-        </div>
+      <div class="sc">
+        <div class="sc-title">💾 Data</div>
+        <div class="sr"><div><div class="sl">Export Inventory</div><div class="ss">Download as JSON</div></div><button class="btn btn-o" onclick="exportJ()">Export</button></div>
+        <div class="sr"><div><div class="sl">Clear All Data</div><div class="ss">⚠️ Deletes from Firebase</div></div><button class="btn btn-d" onclick="clearAll()">Clear All</button></div>
       </div>
     </div>
 
@@ -442,712 +431,641 @@ body{font-family:"DM Sans",sans-serif;background:var(--g0);color:var(--g8);min-h
 
 <!-- NOTIF PANEL -->
 <div class="np" id="np">
-  <div class="np-h"><div class="np-t">🔔 Alerts</div><button class="mx" onclick="toggleNotif()">✕</button></div>
-  <div class="np-list" id="np-list"></div>
+  <div class="nh"><div class="nt">🔔 Alerts</div><button class="mc" onclick="toggleNotif()">✕</button></div>
+  <div class="nl" id="nl"></div>
 </div>
 
 <!-- SELL MODAL -->
-<div class="mo" id="sell-mo">
-  <div class="md">
-    <div class="mh"><div class="mt">💊 Record Sale — MediKart</div><button class="mx" onclick="closeSell()">✕</button></div>
+<div class="mbg" id="sell-modal">
+  <div class="modal">
+    <div class="mh"><div class="mt">💊 Record Sale</div><button class="mc" onclick="closeSell()">✕</button></div>
     <div class="mb">
-      <div class="sell-name" id="sell-name">—</div>
-      <div class="sell-meta" id="sell-meta">—</div>
-      <div class="sell-warn ex-w" id="sell-ex-w">⛔ EXPIRED — Do not sell this medicine to the customer.</div>
-      <div class="sell-warn cr-w" id="sell-cr-w">⚠️ Expiring very soon — please inform the customer.</div>
-      <div class="sell-stock">
-        <div class="sell-sl">Current Stock</div>
-        <div class="sell-sv" id="sell-sv">—</div>
-      </div>
-      <label class="sell-ql">How many units sold?</label>
-      <input class="sell-qi" type="number" id="sell-q" min="1" placeholder="0">
+      <div class="sn" id="sell-n">—</div>
+      <div class="sm" id="sell-m">—</div>
+      <div class="sw r" id="sell-ex" style="display:none">⛔ EXPIRED — Do NOT sell</div>
+      <div class="sw o" id="sell-cr" style="display:none">⚠️ Expiring very soon</div>
+      <div class="stk-bx"><div class="stk-l">Current Stock</div><div class="stk-n" id="sell-stk">—</div></div>
+      <label class="ql">Units sold?</label>
+      <input class="qi" type="number" id="sell-qty" min="1" placeholder="0">
     </div>
     <div class="mf">
       <button class="btn btn-g" onclick="closeSell()">Cancel</button>
-      <button class="btn btn-p" style="padding:9px 20px;" onclick="confirmSale()">✅ Confirm Sale</button>
+      <button class="btn btn-p" style="padding:9px 17px" onclick="confirmSale()">✅ Confirm Sale</button>
     </div>
   </div>
 </div>
 
-<div class="tc3" id="tc3"></div>
+<div class="toasts" id="toasts"></div>
 
-<!-- FIREBASE COMPAT — works on GitHub Pages -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAseVRjcmbZusyU3NDv7Z84WXZVX7UHu48",
-  authDomain: "medikart-2f4e3.firebaseapp.com",
-  databaseURL: "https://medikart-2f4e3-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "medikart-2f4e3",
-  storageBucket: "medikart-2f4e3.firebasestorage.app",
-  messagingSenderId: "346409676114",
-  appId: "1:346409676114:web:3829fe2a42e5b590109e8b"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// ── MEDICINE DATABASE 500+ ──
-const MEDICINE_DB={
-"8901138500001":{name:"Crocin 500mg Tablet",brand:"GSK",category:"Pain Relief",form:"Tablet",strength:"500mg"},
-"8901138500002":{name:"Crocin Advance 500mg",brand:"GSK",category:"Pain Relief",form:"Tablet",strength:"500mg"},
-"8901138500003":{name:"Crocin Pain Relief 650mg",brand:"GSK",category:"Pain Relief",form:"Tablet",strength:"650mg"},
-"8906052500001":{name:"Dolo 650mg Tablet",brand:"Micro Labs",category:"Pain Relief",form:"Tablet",strength:"650mg"},
-"8906052500002":{name:"Dolo 500mg Tablet",brand:"Micro Labs",category:"Pain Relief",form:"Tablet",strength:"500mg"},
-"8906052500003":{name:"Dolo Suspension",brand:"Micro Labs",category:"Pain Relief",form:"Syrup",strength:"120mg/5ml"},
-"8901314500001":{name:"Combiflam Tablet",brand:"Sanofi",category:"Pain Relief",form:"Tablet",strength:"400mg+325mg"},
-"8901314500002":{name:"Combiflam Suspension",brand:"Sanofi",category:"Pain Relief",form:"Syrup",strength:"100mg/5ml"},
-"8901526500001":{name:"Brufen 400mg Tablet",brand:"Abbott",category:"Pain Relief",form:"Tablet",strength:"400mg"},
-"8901526500002":{name:"Brufen 200mg Tablet",brand:"Abbott",category:"Pain Relief",form:"Tablet",strength:"200mg"},
-"8906027500001":{name:"Ibugesic Plus Tablet",brand:"Cipla",category:"Pain Relief",form:"Tablet",strength:"400mg+325mg"},
-"8901139500001":{name:"Paracetamol 500mg",brand:"Cipla",category:"Pain Relief",form:"Tablet",strength:"500mg"},
-"8901139500002":{name:"Paracetamol 650mg",brand:"Cipla",category:"Pain Relief",form:"Tablet",strength:"650mg"},
-"8906028500101":{name:"Nimesulide 100mg",brand:"Cipla",category:"Pain Relief",form:"Tablet",strength:"100mg"},
-"8906028500102":{name:"Nise 100mg Tablet",brand:"Dr Reddy's",category:"Pain Relief",form:"Tablet",strength:"100mg"},
-"8906028500103":{name:"Ketorol DT 10mg",brand:"Sun Pharma",category:"Pain Relief",form:"Tablet",strength:"10mg"},
-"8906028500104":{name:"Voveran 50mg Tablet",brand:"Novartis",category:"Pain Relief",form:"Tablet",strength:"50mg"},
-"8906028500105":{name:"Meftal Spas Tablet",brand:"Blue Cross",category:"Pain Relief",form:"Tablet",strength:"250mg+10mg"},
-"8906028500106":{name:"Meftal-P Suspension",brand:"Blue Cross",category:"Pain Relief",form:"Syrup",strength:"100mg/5ml"},
-"8906028500107":{name:"Ultracet Tablet",brand:"J&J",category:"Pain Relief",form:"Tablet",strength:"37.5mg+325mg"},
-"8906027600001":{name:"Azithromycin 500mg",brand:"Cipla",category:"Antibiotic",form:"Tablet",strength:"500mg"},
-"8906027600002":{name:"Azithral 500mg Tablet",brand:"Alembic",category:"Antibiotic",form:"Tablet",strength:"500mg"},
-"8906027600003":{name:"Azithral 250mg Tablet",brand:"Alembic",category:"Antibiotic",form:"Tablet",strength:"250mg"},
-"8906027600004":{name:"Azee 500mg Tablet",brand:"Cipla",category:"Antibiotic",form:"Tablet",strength:"500mg"},
-"8901526600001":{name:"Amoxicillin 500mg Capsule",brand:"Abbott",category:"Antibiotic",form:"Capsule",strength:"500mg"},
-"8901526600002":{name:"Amoxicillin 250mg Syrup",brand:"Abbott",category:"Antibiotic",form:"Syrup",strength:"125mg/5ml"},
-"8901526600003":{name:"Mox 500mg Capsule",brand:"Ranbaxy",category:"Antibiotic",form:"Capsule",strength:"500mg"},
-"8906027600005":{name:"Augmentin 625mg Tablet",brand:"GSK",category:"Antibiotic",form:"Tablet",strength:"625mg"},
-"8906027600006":{name:"Augmentin 375mg Tablet",brand:"GSK",category:"Antibiotic",form:"Tablet",strength:"375mg"},
-"8901138600001":{name:"Cifran 500mg Tablet",brand:"Sun Pharma",category:"Antibiotic",form:"Tablet",strength:"500mg"},
-"8906027600009":{name:"Metronidazole 400mg",brand:"Cipla",category:"Antibiotic",form:"Tablet",strength:"400mg"},
-"8906027600010":{name:"Flagyl 400mg Tablet",brand:"Abbott",category:"Antibiotic",form:"Tablet",strength:"400mg"},
-"8901314600001":{name:"Taxim-O 200mg Tablet",brand:"Alkem",category:"Antibiotic",form:"Tablet",strength:"200mg"},
-"8901314600002":{name:"Taxim-O 100mg Syrup",brand:"Alkem",category:"Antibiotic",form:"Syrup",strength:"50mg/5ml"},
-"8906027600011":{name:"Cefixime 200mg Tablet",brand:"Lupin",category:"Antibiotic",form:"Tablet",strength:"200mg"},
-"8906027600012":{name:"Doxycycline 100mg",brand:"Sun Pharma",category:"Antibiotic",form:"Capsule",strength:"100mg"},
-"8906027600014":{name:"Norfloxacin 400mg",brand:"Cipla",category:"Antibiotic",form:"Tablet",strength:"400mg"},
-"8906027600016":{name:"Ofloxacin 200mg",brand:"Cipla",category:"Antibiotic",form:"Tablet",strength:"200mg"},
-"8906027600018":{name:"Erythromycin 500mg",brand:"Abbott",category:"Antibiotic",form:"Tablet",strength:"500mg"},
-"8906027600019":{name:"Clindamycin 300mg",brand:"Pfizer",category:"Antibiotic",form:"Capsule",strength:"300mg"},
-"8906027600021":{name:"Cephalexin 500mg",brand:"Cipla",category:"Antibiotic",form:"Capsule",strength:"500mg"},
-"8906027610001":{name:"Fluconazole 150mg",brand:"Cipla",category:"Antifungal",form:"Tablet",strength:"150mg"},
-"8906027610002":{name:"Itraconazole 100mg",brand:"Glenmark",category:"Antifungal",form:"Capsule",strength:"100mg"},
-"8906027610004":{name:"Canesten Cream",brand:"Bayer",category:"Antifungal",form:"Cream",strength:"1%"},
-"8906027610005":{name:"Clotrimazole Cream",brand:"Cipla",category:"Antifungal",form:"Cream",strength:"1%"},
-"8906027620001":{name:"Acyclovir 400mg",brand:"Cipla",category:"Antiviral",form:"Tablet",strength:"400mg"},
-"8901526700001":{name:"Vicks Action 500 Tablet",brand:"P&G",category:"Cold & Cough",form:"Tablet",strength:"500mg"},
-"8901526700002":{name:"Vicks Formula 44 Syrup",brand:"P&G",category:"Cold & Cough",form:"Syrup",strength:"10mg/5ml"},
-"8906027700001":{name:"Benadryl Cough Syrup",brand:"J&J",category:"Cold & Cough",form:"Syrup",strength:"14mg/5ml"},
-"8901526700003":{name:"Sinarest Tablet",brand:"Centaur",category:"Cold & Cough",form:"Tablet",strength:"500mg+30mg"},
-"8906027700003":{name:"Alex Cough Syrup",brand:"Glenmark",category:"Cold & Cough",form:"Syrup",strength:"10mg/5ml"},
-"8901138700001":{name:"Chericof Syrup",brand:"Wockhardt",category:"Cold & Cough",form:"Syrup",strength:"10mg/5ml"},
-"8906027700005":{name:"Ascoril LS Syrup",brand:"Glenmark",category:"Cold & Cough",form:"Syrup",strength:"50mg+30mg/5ml"},
-"8906027700007":{name:"Ambrodil Syrup",brand:"Aristo",category:"Cold & Cough",form:"Syrup",strength:"30mg/5ml"},
-"8906027700009":{name:"Nasivion Nasal Drops",brand:"Merck",category:"Cold & Cough",form:"Drops",strength:"0.05%"},
-"8906027700010":{name:"Otrivin Nasal Spray",brand:"Novartis",category:"Cold & Cough",form:"Spray",strength:"0.1%"},
-"8906027700011":{name:"Wikoryl Tablet",brand:"Alkem",category:"Cold & Cough",form:"Tablet",strength:"500mg+10mg"},
-"8906027700013":{name:"D-Cold Total Tablet",brand:"Novartis",category:"Cold & Cough",form:"Tablet",strength:"500mg+30mg"},
-"8906027700015":{name:"Tossex Syrup",brand:"Cipla",category:"Cold & Cough",form:"Syrup",strength:"10mg/5ml"},
-"8901526800001":{name:"Pantoprazole 40mg",brand:"Sun Pharma",category:"Antacid",form:"Tablet",strength:"40mg"},
-"8906027800001":{name:"Pan 40mg Tablet",brand:"Alkem",category:"Antacid",form:"Tablet",strength:"40mg"},
-"8906027800002":{name:"Pan D Capsule",brand:"Alkem",category:"Antacid",form:"Capsule",strength:"40mg+10mg"},
-"8901138800001":{name:"Omez 20mg Capsule",brand:"Dr Reddy's",category:"Antacid",form:"Capsule",strength:"20mg"},
-"8901138800002":{name:"Omez D Capsule",brand:"Dr Reddy's",category:"Antacid",form:"Capsule",strength:"20mg+10mg"},
-"8901526800002":{name:"Rantac 150mg Tablet",brand:"JB Chem",category:"Antacid",form:"Tablet",strength:"150mg"},
-"8906027800003":{name:"Digene Gel",brand:"Abbott",category:"Antacid",form:"Gel",strength:"195mg/5ml"},
-"8901138800003":{name:"Gelusil MPS Tablet",brand:"Pfizer",category:"Antacid",form:"Tablet",strength:"250mg+500mg"},
-"8901527800001":{name:"Enterogermina Suspension",brand:"Sanofi",category:"Digestion",form:"Oral Suspension",strength:"2Bn spores"},
-"8906027800006":{name:"Rabeprazole 20mg",brand:"Sun Pharma",category:"Antacid",form:"Tablet",strength:"20mg"},
-"8906027800010":{name:"Domperidone 10mg",brand:"Cipla",category:"Digestion",form:"Tablet",strength:"10mg"},
-"8906027800014":{name:"Ondansetron 4mg",brand:"Cipla",category:"Digestion",form:"Tablet",strength:"4mg"},
-"8906027800017":{name:"Cremaffin Syrup",brand:"Abbott",category:"Digestion",form:"Syrup",strength:"3.75ml/5ml"},
-"8906027800018":{name:"Dulcolax 5mg Tablet",brand:"Sanofi",category:"Digestion",form:"Tablet",strength:"5mg"},
-"8906027900001":{name:"Cetirizine 10mg Tablet",brand:"Cipla",category:"Allergy",form:"Tablet",strength:"10mg"},
-"8906027900002":{name:"Cetzine 10mg Tablet",brand:"Cipla",category:"Allergy",form:"Tablet",strength:"10mg"},
-"8901526900001":{name:"Allegra 120mg Tablet",brand:"Sanofi",category:"Allergy",form:"Tablet",strength:"120mg"},
-"8901526900002":{name:"Allegra 180mg Tablet",brand:"Sanofi",category:"Allergy",form:"Tablet",strength:"180mg"},
-"8901139000001":{name:"Montair LC Tablet",brand:"Cipla",category:"Allergy",form:"Tablet",strength:"10mg+5mg"},
-"8901139000002":{name:"Montair 10mg Tablet",brand:"Cipla",category:"Allergy",form:"Tablet",strength:"10mg"},
-"8906027900003":{name:"Levocet 5mg Tablet",brand:"Sun Pharma",category:"Allergy",form:"Tablet",strength:"5mg"},
-"8906027900005":{name:"Fexofenadine 120mg",brand:"Sanofi",category:"Allergy",form:"Tablet",strength:"120mg"},
-"8906027900008":{name:"Avil 25mg Tablet",brand:"Sanofi",category:"Allergy",form:"Tablet",strength:"25mg"},
-"8901526950001":{name:"Metformin 500mg Tablet",brand:"USV",category:"Diabetes",form:"Tablet",strength:"500mg"},
-"8901526950002":{name:"Metformin 850mg Tablet",brand:"USV",category:"Diabetes",form:"Tablet",strength:"850mg"},
-"8901526950003":{name:"Glycomet 500mg Tablet",brand:"USV",category:"Diabetes",form:"Tablet",strength:"500mg"},
-"8901139100001":{name:"Januvia 100mg Tablet",brand:"MSD",category:"Diabetes",form:"Tablet",strength:"100mg"},
-"8901527100001":{name:"Glipizide 5mg Tablet",brand:"Pfizer",category:"Diabetes",form:"Tablet",strength:"5mg"},
-"8906027950001":{name:"Amaryl 2mg Tablet",brand:"Sanofi",category:"Diabetes",form:"Tablet",strength:"2mg"},
-"8906027950002":{name:"Glimepiride 1mg",brand:"Sun Pharma",category:"Diabetes",form:"Tablet",strength:"1mg"},
-"8906027950006":{name:"Dapagliflozin 10mg",brand:"AstraZeneca",category:"Diabetes",form:"Tablet",strength:"10mg"},
-"8906027950010":{name:"Gliclazide 80mg",brand:"Servier",category:"Diabetes",form:"Tablet",strength:"80mg"},
-"8906027950014":{name:"Human Insulin 30/70",brand:"Novo Nordisk",category:"Diabetes",form:"Injection",strength:"100IU/ml"},
-"8906027960001":{name:"Amlodipine 5mg Tablet",brand:"Sun Pharma",category:"Cardiac",form:"Tablet",strength:"5mg"},
-"8906027960002":{name:"Amlodipine 10mg Tablet",brand:"Sun Pharma",category:"Cardiac",form:"Tablet",strength:"10mg"},
-"8901139200001":{name:"Atenolol 50mg Tablet",brand:"IPCA",category:"Cardiac",form:"Tablet",strength:"50mg"},
-"8901527200001":{name:"Telma 40mg Tablet",brand:"Glenmark",category:"Cardiac",form:"Tablet",strength:"40mg"},
-"8901527200002":{name:"Telma H 40mg Tablet",brand:"Glenmark",category:"Cardiac",form:"Tablet",strength:"40mg+12.5mg"},
-"8906027960004":{name:"Losartan 50mg Tablet",brand:"Dr Reddy's",category:"Cardiac",form:"Tablet",strength:"50mg"},
-"8901139200003":{name:"Ecosprin 75mg Tablet",brand:"USV",category:"Cardiac",form:"Tablet",strength:"75mg"},
-"8901139200004":{name:"Ecosprin 150mg Tablet",brand:"USV",category:"Cardiac",form:"Tablet",strength:"150mg"},
-"8901139200005":{name:"Ecosprin AV 75 Capsule",brand:"USV",category:"Cardiac",form:"Capsule",strength:"75mg+20mg"},
-"8906027960006":{name:"Ramipril 5mg Tablet",brand:"Sanofi",category:"Cardiac",form:"Tablet",strength:"5mg"},
-"8906027960010":{name:"Metoprolol 25mg Tablet",brand:"AstraZeneca",category:"Cardiac",form:"Tablet",strength:"25mg"},
-"8906027960013":{name:"Clopidogrel 75mg Tablet",brand:"Sun Pharma",category:"Cardiac",form:"Tablet",strength:"75mg"},
-"8906027960020":{name:"Furosemide 40mg",brand:"Sanofi",category:"Cardiac",form:"Tablet",strength:"40mg"},
-"8906027970001":{name:"Atorvastatin 10mg Tablet",brand:"Pfizer",category:"Cholesterol",form:"Tablet",strength:"10mg"},
-"8906027970002":{name:"Atorvastatin 20mg Tablet",brand:"Pfizer",category:"Cholesterol",form:"Tablet",strength:"20mg"},
-"8906027970005":{name:"Rosuvastatin 10mg",brand:"AstraZeneca",category:"Cholesterol",form:"Tablet",strength:"10mg"},
-"8906027970008":{name:"Simvastatin 20mg",brand:"MSD",category:"Cholesterol",form:"Tablet",strength:"20mg"},
-"8906027980001":{name:"Levothyroxine 50mcg",brand:"Abbott",category:"Thyroid",form:"Tablet",strength:"50mcg"},
-"8906027980002":{name:"Eltroxin 50mcg Tablet",brand:"GSK",category:"Thyroid",form:"Tablet",strength:"50mcg"},
-"8906027980003":{name:"Thyrox 50mcg Tablet",brand:"Macleods",category:"Thyroid",form:"Tablet",strength:"50mcg"},
-"8906027980004":{name:"Levothyroxine 100mcg",brand:"Abbott",category:"Thyroid",form:"Tablet",strength:"100mcg"},
-"8906027990001":{name:"Shelcal 500mg Tablet",brand:"Torrent",category:"Supplement",form:"Tablet",strength:"500mg"},
-"8901527300001":{name:"Becosules Capsule",brand:"Pfizer",category:"Vitamin",form:"Capsule",strength:"Multi-vitamin"},
-"8901139300001":{name:"Zincovit Tablet",brand:"Apex",category:"Vitamin",form:"Tablet",strength:"Multi-vitamin"},
-"8906027990003":{name:"Limcee 500mg Tablet",brand:"Abbott",category:"Vitamin",form:"Tablet",strength:"500mg"},
-"8901527300002":{name:"Neurobion Forte Tablet",brand:"Merck",category:"Vitamin",form:"Tablet",strength:"B-complex"},
-"8906027990005":{name:"Calcirol Sachet",brand:"Cadila",category:"Supplement",form:"Sachet",strength:"60000IU"},
-"8906027990007":{name:"Vitamin D3 60000 IU",brand:"Sun Pharma",category:"Supplement",form:"Capsule",strength:"60000IU"},
-"8906027990008":{name:"Folic Acid 5mg Tablet",brand:"Abbott",category:"Vitamin",form:"Tablet",strength:"5mg"},
-"8906027990014":{name:"Supradyn Tablet",brand:"Bayer",category:"Vitamin",form:"Tablet",strength:"Multi-vitamin"},
-"8906027990015":{name:"Revital H Capsule",brand:"Ranbaxy",category:"Vitamin",form:"Capsule",strength:"Multi-vitamin"},
-"8906027990019":{name:"Methylcobalamin 500mcg",brand:"Sun Pharma",category:"Vitamin",form:"Tablet",strength:"500mcg"},
-"8906028000002":{name:"Asthalin 2mg Tablet",brand:"Cipla",category:"Respiratory",form:"Tablet",strength:"2mg"},
-"8906028000003":{name:"Asthalin Inhaler",brand:"Cipla",category:"Respiratory",form:"Inhaler",strength:"100mcg/dose"},
-"8906028000005":{name:"Ventolin Inhaler",brand:"GSK",category:"Respiratory",form:"Inhaler",strength:"100mcg/dose"},
-"8906028000008":{name:"Foracort 200 Inhaler",brand:"Cipla",category:"Respiratory",form:"Inhaler",strength:"200mcg+6mcg"},
-"8906028000010":{name:"Montelukast 10mg",brand:"MSD",category:"Respiratory",form:"Tablet",strength:"10mg"},
-"8901139400001":{name:"Betnovate-N Cream",brand:"GSK",category:"Skin",form:"Cream",strength:"0.1%+0.5%"},
-"8906028100001":{name:"Soframycin Cream",brand:"Roussel",category:"Skin",form:"Cream",strength:"1%"},
-"8901527400001":{name:"Fucidin Cream",brand:"Leo Pharma",category:"Skin",form:"Cream",strength:"2%"},
-"8906028100002":{name:"Neosporin Cream",brand:"J&J",category:"Skin",form:"Cream",strength:"0.5%"},
-"8906028100009":{name:"Calamine Lotion",brand:"Cipla",category:"Skin",form:"Lotion",strength:"15%"},
-"8906028200001":{name:"Moxifloxacin Eye Drop",brand:"Alcon",category:"Eye Care",form:"Eye Drops",strength:"0.5%"},
-"8906028200012":{name:"Soliwax Ear Drop",brand:"Reckitt",category:"Ear Care",form:"Ear Drops",strength:"5%"},
-"8906028300001":{name:"Gabapentin 300mg",brand:"Pfizer",category:"Neurological",form:"Capsule",strength:"300mg"},
-"8906028300003":{name:"Pregabalin 75mg",brand:"Pfizer",category:"Neurological",form:"Capsule",strength:"75mg"},
-"8906028300006":{name:"Eptoin 100mg Tablet",brand:"Abbott",category:"Neurological",form:"Tablet",strength:"100mg"},
-"8906028400001":{name:"Sertraline 50mg Tablet",brand:"Pfizer",category:"Psychiatry",form:"Tablet",strength:"50mg"},
-"8906028400005":{name:"Escitalopram 10mg",brand:"Lundbeck",category:"Psychiatry",form:"Tablet",strength:"10mg"},
-"8906028400007":{name:"Clonazepam 0.5mg",brand:"Roche",category:"Psychiatry",form:"Tablet",strength:"0.5mg"},
-"8906028400009":{name:"Alprazolam 0.25mg",brand:"Pfizer",category:"Psychiatry",form:"Tablet",strength:"0.25mg"},
-"8906028500003":{name:"Duphaston 10mg Tablet",brand:"Abbott",category:"Women's Health",form:"Tablet",strength:"10mg"},
-"8906028500007":{name:"Unwanted 72 Tablet",brand:"Mankind",category:"Women's Health",form:"Tablet",strength:"1.5mg"},
-"8906028500008":{name:"I-Pill Tablet",brand:"Cipla",category:"Women's Health",form:"Tablet",strength:"1.5mg"},
-"8906028600002":{name:"Urimax 0.4mg Capsule",brand:"Cipla",category:"Urology",form:"Capsule",strength:"0.4mg"},
-"8906028700001":{name:"Electral ORS Sachet",brand:"FDC",category:"ORS",form:"Sachet",strength:"21.8g"},
-"8906028700002":{name:"Pedialyte ORS Sachet",brand:"Abbott",category:"ORS",form:"Sachet",strength:"17.7g"},
-"8906028800001":{name:"Betadine 10% Solution",brand:"Win-Medicare",category:"Antiseptic",form:"Solution",strength:"10%"},
-"8906028800003":{name:"Dettol Antiseptic Liquid",brand:"Reckitt",category:"Antiseptic",form:"Solution",strength:"4.8%"},
-"8906028900001":{name:"Band-Aid Adhesive Bandage",brand:"J&J",category:"Surgical",form:"Bandage",strength:"N/A"},
-"8906029000001":{name:"Albendazole 400mg",brand:"GSK",category:"Anti-Parasitic",form:"Tablet",strength:"400mg"},
-"8906029000002":{name:"Zentel 400mg Tablet",brand:"GSK",category:"Anti-Parasitic",form:"Tablet",strength:"400mg"},
-"8906029100001":{name:"Chloroquine 250mg",brand:"IPCA",category:"Anti-Malarial",form:"Tablet",strength:"250mg"},
-"8906029200001":{name:"Rifampicin 450mg",brand:"Lupin",category:"Anti-TB",form:"Tablet",strength:"450mg"},
-"8906029300001":{name:"Prednisolone 5mg Tablet",brand:"Sun Pharma",category:"Steroid",form:"Tablet",strength:"5mg"},
-"8906029300005":{name:"Methylprednisolone 4mg",brand:"Pfizer",category:"Steroid",form:"Tablet",strength:"4mg"},
-"8906029400002":{name:"Tizanidine 2mg Tablet",brand:"Novartis",category:"Muscle Relaxant",form:"Tablet",strength:"2mg"},
-"8906029500001":{name:"Normal Saline 500ml",brand:"Baxter",category:"IV Fluid",form:"IV Bag",strength:"0.9%"},
-"8906029500002":{name:"Ringer Lactate 500ml",brand:"Baxter",category:"IV Fluid",form:"IV Bag",strength:"N/A"},
-"8906029500006":{name:"Ondansetron 4mg Injection",brand:"GSK",category:"Injectable",form:"Injection",strength:"4mg/2ml"}
-};
-
-// ── STATE ──
-let products = [];
-let settings = { lowThresh:10, expDays:30, flaskURL:'' };
-let currentFilter = 'all';
-let currentSellId = null;
-let notifOpen = false;
-let scanActive = false;
-let scanStream = null;
-let scanCooldown = false;
-let pollInterval = null;
-let lastPollBC = '';
-
-// Load settings from localStorage (settings are device-specific, that's fine)
-try{ const s=JSON.parse(localStorage.getItem('mk-settings')); if(s) settings=s; }catch(e){}
-
-// ── FIREBASE REAL-TIME LISTENER ──
-// This is the key — onValue fires every time data changes on ANY device
-const productsRef = db.ref("medikart/products");
-productsRef.on("value", (snapshot) => {
-  products = [];
-  if(snapshot.exists()){
-    snapshot.forEach(child => {
-      products.push({ ...child.val(), _key: child.key });
-    });
-  }
-  renderAll();
-  // Hide loading overlay once data loads
-  const lo = document.getElementById('loading');
-  if(lo){ lo.classList.add('hide'); setTimeout(()=>lo.remove(),500); }
-  // Update Firebase status
-  document.getElementById('fb-dot').className='fb-dot ok';
-  document.getElementById('fb-txt').textContent='Firebase Connected';
-}, (error) => {
-  showToast('Firebase error: '+error.message,'err');
-  document.getElementById('fb-dot').className='fb-dot';
-  document.getElementById('fb-txt').textContent='Firebase Error';
+// ════════════════════════════════════════
+// FIREBASE INIT
+// ════════════════════════════════════════
+firebase.initializeApp({
+  apiKey:"AIzaSyAseVRjcmbZusyU3NDv7Z84WXZVX7UHu48",
+  authDomain:"medikart-2f4e3.firebaseapp.com",
+  databaseURL:"https://medikart-2f4e3-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"medikart-2f4e3",
+  storageBucket:"medikart-2f4e3.firebasestorage.app",
+  messagingSenderId:"346409676114",
+  appId:"1:346409676114:web:3829fe2a42e5b590109e8b"
 });
+var db = firebase.database();
+var pRef = db.ref("medikart/products");
 
-// Fallback — hide loading after 4s even if no data
-setTimeout(()=>{ const lo=document.getElementById('loading'); if(lo){lo.classList.add('hide');setTimeout(()=>lo.remove(),500);}},4000);
+// ════════════════════════════════════════
+// MEDICINE DATABASE
+// ════════════════════════════════════════
+var MDB={
+"8901138500001":{n:"Crocin 500mg Tablet",b:"GSK",c:"Pain Relief",f:"Tablet"},
+"8901138500003":{n:"Crocin 650mg Tablet",b:"GSK",c:"Pain Relief",f:"Tablet"},
+"8906052500001":{n:"Dolo 650mg Tablet",b:"Micro Labs",c:"Pain Relief",f:"Tablet"},
+"8906052500002":{n:"Dolo 500mg Tablet",b:"Micro Labs",c:"Pain Relief",f:"Tablet"},
+"8901314500001":{n:"Combiflam Tablet",b:"Sanofi",c:"Pain Relief",f:"Tablet"},
+"8901526500001":{n:"Brufen 400mg Tablet",b:"Abbott",c:"Pain Relief",f:"Tablet"},
+"8906027500001":{n:"Ibugesic Plus Tablet",b:"Cipla",c:"Pain Relief",f:"Tablet"},
+"8901139500001":{n:"Paracetamol 500mg",b:"Cipla",c:"Pain Relief",f:"Tablet"},
+"8901139500002":{n:"Paracetamol 650mg",b:"Cipla",c:"Pain Relief",f:"Tablet"},
+"8906028500102":{n:"Nise 100mg Tablet",b:"Dr Reddys",c:"Pain Relief",f:"Tablet"},
+"8906028500103":{n:"Ketorol DT 10mg",b:"Sun Pharma",c:"Pain Relief",f:"Tablet"},
+"8906028500104":{n:"Voveran 50mg Tablet",b:"Novartis",c:"Pain Relief",f:"Tablet"},
+"8906028500105":{n:"Meftal Spas Tablet",b:"Blue Cross",c:"Pain Relief",f:"Tablet"},
+"8906027600001":{n:"Azithromycin 500mg",b:"Cipla",c:"Antibiotic",f:"Tablet"},
+"8906027600002":{n:"Azithral 500mg Tablet",b:"Alembic",c:"Antibiotic",f:"Tablet"},
+"8906027600005":{n:"Augmentin 625mg Tablet",b:"GSK",c:"Antibiotic",f:"Tablet"},
+"8901526600001":{n:"Amoxicillin 500mg",b:"Abbott",c:"Antibiotic",f:"Capsule"},
+"8901526600003":{n:"Mox 500mg Capsule",b:"Ranbaxy",c:"Antibiotic",f:"Capsule"},
+"8901138600001":{n:"Cifran 500mg Tablet",b:"Sun Pharma",c:"Antibiotic",f:"Tablet"},
+"8906027600009":{n:"Metronidazole 400mg",b:"Cipla",c:"Antibiotic",f:"Tablet"},
+"8906027600010":{n:"Flagyl 400mg Tablet",b:"Abbott",c:"Antibiotic",f:"Tablet"},
+"8901314600001":{n:"Taxim-O 200mg Tablet",b:"Alkem",c:"Antibiotic",f:"Tablet"},
+"8906027600011":{n:"Cefixime 200mg Tablet",b:"Lupin",c:"Antibiotic",f:"Tablet"},
+"8906027600012":{n:"Doxycycline 100mg",b:"Sun Pharma",c:"Antibiotic",f:"Capsule"},
+"8906027610001":{n:"Fluconazole 150mg",b:"Cipla",c:"Antifungal",f:"Tablet"},
+"8901526700001":{n:"Vicks Action 500",b:"P&G",c:"Cold & Cough",f:"Tablet"},
+"8906027700001":{n:"Benadryl Cough Syrup",b:"J&J",c:"Cold & Cough",f:"Syrup"},
+"8901526700003":{n:"Sinarest Tablet",b:"Centaur",c:"Cold & Cough",f:"Tablet"},
+"8906027700003":{n:"Alex Cough Syrup",b:"Glenmark",c:"Cold & Cough",f:"Syrup"},
+"8906027700005":{n:"Ascoril LS Syrup",b:"Glenmark",c:"Cold & Cough",f:"Syrup"},
+"8906027700009":{n:"Nasivion Nasal Drops",b:"Merck",c:"Cold & Cough",f:"Drops"},
+"8906027700013":{n:"D-Cold Total Tablet",b:"Novartis",c:"Cold & Cough",f:"Tablet"},
+"8901526800001":{n:"Pantoprazole 40mg",b:"Sun Pharma",c:"Antacid",f:"Tablet"},
+"8906027800001":{n:"Pan 40mg Tablet",b:"Alkem",c:"Antacid",f:"Tablet"},
+"8906027800002":{n:"Pan D Capsule",b:"Alkem",c:"Antacid",f:"Capsule"},
+"8901138800001":{n:"Omez 20mg Capsule",b:"Dr Reddys",c:"Antacid",f:"Capsule"},
+"8901526800002":{n:"Rantac 150mg Tablet",b:"JB Chem",c:"Antacid",f:"Tablet"},
+"8906027800003":{n:"Digene Gel",b:"Abbott",c:"Antacid",f:"Gel"},
+"8906027800006":{n:"Rabeprazole 20mg",b:"Sun Pharma",c:"Antacid",f:"Tablet"},
+"8906027800010":{n:"Domperidone 10mg",b:"Cipla",c:"Digestion",f:"Tablet"},
+"8906027800014":{n:"Ondansetron 4mg",b:"Cipla",c:"Digestion",f:"Tablet"},
+"8906027900001":{n:"Cetirizine 10mg Tablet",b:"Cipla",c:"Allergy",f:"Tablet"},
+"8906027900002":{n:"Cetzine 10mg Tablet",b:"Cipla",c:"Allergy",f:"Tablet"},
+"8901526900001":{n:"Allegra 120mg Tablet",b:"Sanofi",c:"Allergy",f:"Tablet"},
+"8901526900002":{n:"Allegra 180mg Tablet",b:"Sanofi",c:"Allergy",f:"Tablet"},
+"8901139000001":{n:"Montair LC Tablet",b:"Cipla",c:"Allergy",f:"Tablet"},
+"8906027900003":{n:"Levocet 5mg Tablet",b:"Sun Pharma",c:"Allergy",f:"Tablet"},
+"8906027900005":{n:"Fexofenadine 120mg",b:"Sanofi",c:"Allergy",f:"Tablet"},
+"8906027900008":{n:"Avil 25mg Tablet",b:"Sanofi",c:"Allergy",f:"Tablet"},
+"8901526950001":{n:"Metformin 500mg Tablet",b:"USV",c:"Diabetes",f:"Tablet"},
+"8901526950003":{n:"Glycomet 500mg Tablet",b:"USV",c:"Diabetes",f:"Tablet"},
+"8906027950001":{n:"Amaryl 2mg Tablet",b:"Sanofi",c:"Diabetes",f:"Tablet"},
+"8906027950002":{n:"Glimepiride 1mg",b:"Sun Pharma",c:"Diabetes",f:"Tablet"},
+"8906027950006":{n:"Dapagliflozin 10mg",b:"AstraZeneca",c:"Diabetes",f:"Tablet"},
+"8906027960001":{n:"Amlodipine 5mg Tablet",b:"Sun Pharma",c:"Cardiac",f:"Tablet"},
+"8901139200001":{n:"Atenolol 50mg Tablet",b:"IPCA",c:"Cardiac",f:"Tablet"},
+"8901527200001":{n:"Telma 40mg Tablet",b:"Glenmark",c:"Cardiac",f:"Tablet"},
+"8906027960004":{n:"Losartan 50mg Tablet",b:"Dr Reddys",c:"Cardiac",f:"Tablet"},
+"8901139200003":{n:"Ecosprin 75mg Tablet",b:"USV",c:"Cardiac",f:"Tablet"},
+"8901139200004":{n:"Ecosprin 150mg Tablet",b:"USV",c:"Cardiac",f:"Tablet"},
+"8906027960006":{n:"Ramipril 5mg Tablet",b:"Sanofi",c:"Cardiac",f:"Tablet"},
+"8906027970001":{n:"Atorvastatin 10mg",b:"Pfizer",c:"Cholesterol",f:"Tablet"},
+"8906027970002":{n:"Atorvastatin 20mg",b:"Pfizer",c:"Cholesterol",f:"Tablet"},
+"8906027970005":{n:"Rosuvastatin 10mg",b:"AstraZeneca",c:"Cholesterol",f:"Tablet"},
+"8906027980001":{n:"Levothyroxine 50mcg",b:"Abbott",c:"Thyroid",f:"Tablet"},
+"8906027980002":{n:"Eltroxin 50mcg Tablet",b:"GSK",c:"Thyroid",f:"Tablet"},
+"8906027980004":{n:"Levothyroxine 100mcg",b:"Abbott",c:"Thyroid",f:"Tablet"},
+"8906027990001":{n:"Shelcal 500mg Tablet",b:"Torrent",c:"Supplement",f:"Tablet"},
+"8901527300001":{n:"Becosules Capsule",b:"Pfizer",c:"Vitamin",f:"Capsule"},
+"8901139300001":{n:"Zincovit Tablet",b:"Apex",c:"Vitamin",f:"Tablet"},
+"8906027990003":{n:"Limcee 500mg Tablet",b:"Abbott",c:"Vitamin",f:"Tablet"},
+"8901527300002":{n:"Neurobion Forte Tablet",b:"Merck",c:"Vitamin",f:"Tablet"},
+"8906027990007":{n:"Vitamin D3 60000 IU",b:"Sun Pharma",c:"Supplement",f:"Capsule"},
+"8906027990008":{n:"Folic Acid 5mg",b:"Abbott",c:"Vitamin",f:"Tablet"},
+"8906027990014":{n:"Supradyn Tablet",b:"Bayer",c:"Vitamin",f:"Tablet"},
+"8906027990019":{n:"Methylcobalamin 500mcg",b:"Sun Pharma",c:"Vitamin",f:"Tablet"},
+"8906028000003":{n:"Asthalin Inhaler",b:"Cipla",c:"Respiratory",f:"Inhaler"},
+"8906028000005":{n:"Ventolin Inhaler",b:"GSK",c:"Respiratory",f:"Inhaler"},
+"8906028000010":{n:"Montelukast 10mg",b:"MSD",c:"Respiratory",f:"Tablet"},
+"8901139400001":{n:"Betnovate-N Cream",b:"GSK",c:"Skin",f:"Cream"},
+"8906028100001":{n:"Soframycin Cream",b:"Roussel",c:"Skin",f:"Cream"},
+"8906028100002":{n:"Neosporin Cream",b:"J&J",c:"Skin",f:"Cream"},
+"8906028300001":{n:"Gabapentin 300mg",b:"Pfizer",c:"Neurological",f:"Capsule"},
+"8906028300003":{n:"Pregabalin 75mg",b:"Pfizer",c:"Neurological",f:"Capsule"},
+"8906028400001":{n:"Sertraline 50mg",b:"Pfizer",c:"Psychiatry",f:"Tablet"},
+"8906028400005":{n:"Escitalopram 10mg",b:"Lundbeck",c:"Psychiatry",f:"Tablet"},
+"8906028700001":{n:"Electral ORS Sachet",b:"FDC",c:"ORS",f:"Sachet"},
+"8906028800001":{n:"Betadine 10% Solution",b:"Win-Medicare",c:"Antiseptic",f:"Solution"},
+"8906029000001":{n:"Albendazole 400mg",b:"GSK",c:"Anti-Parasitic",f:"Tablet"},
+"8906029000002":{n:"Zentel 400mg Tablet",b:"GSK",c:"Anti-Parasitic",f:"Tablet"},
+"8906029300001":{n:"Prednisolone 5mg",b:"Sun Pharma",c:"Steroid",f:"Tablet"},
+"8906029500001":{n:"Normal Saline 500ml",b:"Baxter",c:"IV Fluid",f:"IV Bag"},
+"8906029500002":{n:"Ringer Lactate 500ml",b:"Baxter",c:"IV Fluid",f:"IV Bag"}
+};
 
-// ── HELPERS ──
-function fmtExpiry(exp){
-  if(!exp) return '—';
-  const [y,m]=exp.split('-');
-  const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${mn[parseInt(m)-1]} ${y}`;
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+var prods=[], filt='all', nOpen=false, sellKey=null;
+var scanning=false, scanStream=null, cooldown=false;
+var zxReader=null, pollTmr=null, lastBC='';
+var CFG=JSON.parse(localStorage.getItem('mk2-cfg')||'{"low":10,"days":30,"flask":""}');
+
+// ════════════════════════════════════════
+// FIREBASE REALTIME
+// ════════════════════════════════════════
+pRef.on('value', function(snap){
+  prods=[];
+  if(snap.exists()) snap.forEach(function(c){ prods.push(Object.assign({},c.val(),{_k:c.key})); });
+  renderAll();
+  hideLoad();
+  document.getElementById('fb-dot').className='dot ok';
+  document.getElementById('fb-txt').textContent='Firebase ✓';
+}, function(e){
+  document.getElementById('fb-dot').className='dot';
+  document.getElementById('fb-txt').textContent='Firebase Error';
+  hideLoad();
+  toast('Firebase: '+e.message,'err');
+});
+setTimeout(hideLoad, 6000);
+function hideLoad(){var el=document.getElementById('ld');if(el&&!el.classList.contains('hide')){el.classList.add('hide');setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);},500);}}
+
+// ════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════
+function fmtExp(e){
+  if(!e)return'—';
+  var p=e.split('-'), mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return mn[parseInt(p[1])-1]+' '+p[0];
+}
+function getStatus(e){
+  if(!e)return{c:'g',d:999,lbl:'No date'};
+  var now=new Date(); now.setHours(0,0,0,0);
+  var exp=new Date(e+'-01'); exp.setMonth(exp.getMonth()+1); exp.setDate(0);
+  var d=Math.ceil((exp-now)/86400000);
+  if(d<0)return{c:'r',d:d,lbl:'Expired '+Math.abs(d)+'d ago'};
+  if(d<=3)return{c:'o',d:d,lbl:'Expires in '+d+'d'};
+  if(d<=CFG.days)return{c:'y',d:d,lbl:'Expires in '+d+'d'};
+  return{c:'g',d:d,lbl:d+'d left'};
+}
+function isLow(p){return p.qty<=CFG.low;}
+function lookupDB(bc){var m=MDB[bc]; return m?{name:m.n,brand:m.b,cat:m.c,form:m.f}:null;}
+async function lookupAPI(bc){
+  try{
+    var r=await fetch('https://world.openfoodfacts.org/api/v0/product/'+bc+'.json');
+    var d=await r.json();
+    if(d.status===1&&d.product&&d.product.product_name)
+      return{name:d.product.product_name,brand:d.product.brands||'',cat:'General',form:''};
+  }catch(e){}
+  return null;
 }
 
-function getStatus(exp){
-  const today=new Date(); today.setHours(0,0,0,0);
-  const e=new Date(exp+'-01'); e.setMonth(e.getMonth()+1); e.setDate(0);
-  const diff=Math.ceil((e-today)/86400000);
-  if(diff<0) return {s:'ex',days:diff,label:`Expired ${Math.abs(diff)}d ago`};
-  if(diff<=3) return {s:'cr',days:diff,label:`Expires in ${diff}d`};
-  if(diff<=settings.expDays) return {s:'wa',days:diff,label:`Expires in ${diff}d`};
-  return {s:'sa',days:diff,label:`${diff} days left`};
+// ════════════════════════════════════════
+// CARD BUILDER
+// ════════════════════════════════════════
+function makeCard(p){
+  var st=getStatus(p.expiry);
+  var lo=isLow(p)&&st.c==='g';
+  var c=lo?'p':st.c;
+  var lbl=lo?'Low Stock':st.lbl;
+  return '<div class="card '+c+'">'
+    +'<div class="cdot '+c+'"></div>'
+    +'<div class="ci">'
+      +'<div class="cn">'+p.name+'</div>'
+      +'<div class="cm">'
+        +(p.brand?'<span>🏷️ '+p.brand+'</span>':'')
+        +(p.cat?'<span>💊 '+p.cat+'</span>':'')
+        +(p.shelf&&p.shelf!=='—'?'<span>📍 '+p.shelf+'</span>':'')
+        +'<span>📅 '+fmtExp(p.expiry)+'</span>'
+        +(p.barcode&&p.barcode!=='—'?'<span>🔢 '+p.barcode+'</span>':'')
+      +'</div>'
+    +'</div>'
+    +'<div class="cbadges">'
+      +'<span class="qbdg">'+p.qty+' units</span>'
+      +'<span class="bdg '+c+'">'+lbl+'</span>'
+    +'</div>'
+    +'<div class="cact">'
+      +'<button class="btn btn-sell" onclick="openSell(\''+p._k+'\')">Sell</button>'
+      +(st.c==='r'?'<button class="btn btn-d" onclick="delProd(\''+p._k+'\',\''+p.name.replace(/'/g,"\\'")+'\')" style="font-size:10px;padding:4px 8px">🗑️</button>':'')
+    +'</div>'
+  +'</div>';
 }
 
-function isLow(p){ return p.qty<=settings.lowThresh; }
-
-// ── CARD ──
-function card(p){
-  const st=getStatus(p.expiry);
-  const low=isLow(p)&&st.s==='sa';
-  const cs=low?'lo':st.s;
-  const lb=low?`Low stock (${p.qty})`:st.label;
-  return `<div class="pc ${cs}">
-    <div class="sdot ${cs}"></div>
-    <div class="pi">
-      <div class="pn">${p.name}</div>
-      <div class="pm">
-        ${p.brand?`<span>🏷️ ${p.brand}</span>`:''}
-        ${p.category?`<span>💊 ${p.category}</span>`:''}
-        ${p.shelf&&p.shelf!=='—'?`<span>📍 ${p.shelf}</span>`:''}
-        <span>🔢 ${p.barcode||'—'}</span>
-        <span>📅 ${fmtExpiry(p.expiry)}</span>
-      </div>
-    </div>
-    <div class="pbdg">
-      <span class="qbdg">${p.qty} units</span>
-      <span class="bdg ${cs}">${lb}</span>
-    </div>
-    <div class="ca">
-      ${st.s==='ex'?`<button class="btn btn-d" onclick="window.deleteProduct('${p._key}','${p.name}')">🗑️ Delete</button>`:''}
-    </div>
-  </div>`;
-}
-
-// ── DASHBOARD ──
+// ════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════
 function renderDash(){
-  let ex=0,cr=0,wa=0,sa=0,lo=0,html='';
-  products.forEach(p=>{
-    const st=getStatus(p.expiry);
-    if(st.s==='ex'){ex++;html+=card(p);}
-    else if(st.s==='cr'){cr++;html+=card(p);}
-    else if(st.s==='wa') wa++;
+  var ex=0,cr=0,wa=0,sa=0,lo=0, html='';
+  prods.forEach(function(p){
+    var st=getStatus(p.expiry);
+    if(st.c==='r'){ex++;html+=makeCard(p);}
+    else if(st.c==='o'){cr++;html+=makeCard(p);}
+    else if(st.c==='y')wa++;
     else sa++;
-    if(isLow(p)) lo++;
+    if(isLow(p))lo++;
   });
   document.getElementById('s-ex').textContent=ex;
   document.getElementById('s-cr').textContent=cr;
   document.getElementById('s-wa').textContent=wa;
   document.getElementById('s-sa').textContent=sa;
   document.getElementById('s-lo').textContent=lo;
-  document.getElementById('dash-list').innerHTML=html||`<div class="es"><div class="es-ic">🎉</div><div class="es-t">All medicines are safe!</div><div class="es-s">No expired or critical items.</div><button class="btn btn-p" onclick="showPage('register')">+ Register First Medicine</button></div>`;
+  var el=document.getElementById('dash-cards');
+  el.innerHTML=html||'<div class="empty"><div class="ei">🎉</div><div class="et">All Clear!</div><div class="es">No expired or critical medicines right now.</div><button class="btn btn-p" onclick="nav(\'register\',document.querySelector(\'.nb:nth-child(3)\'))">+ Register Medicine</button></div>';
   renderNotifs();
 }
 
-// ── INVENTORY ──
-function renderInv(search=''){
-  let list=products.filter(p=>{
-    const st=getStatus(p.expiry);
-    const lo=isLow(p)&&st.s==='sa';
-    const cs=lo?'lo':st.s;
-    const mf=currentFilter==='all'||cs===currentFilter;
-    const ms=!search||p.name.toLowerCase().includes(search.toLowerCase())||(p.barcode||'').includes(search)||(p.brand||'').toLowerCase().includes(search.toLowerCase());
-    return mf&&ms;
-  }).sort((a,b)=>getStatus(a.expiry).days-getStatus(b.expiry).days);
-  document.getElementById('inv-list').innerHTML=list.length?list.map(card).join(''):`<div class="es"><div class="es-ic">📭</div><div class="es-t">No medicines found</div><div class="es-s">Try a different filter or register medicines.</div></div>`;
+// ════════════════════════════════════════
+// INVENTORY
+// ════════════════════════════════════════
+function renderInv(q){
+  q=q||'';
+  var list=prods.filter(function(p){
+    var st=getStatus(p.expiry); var lo=isLow(p)&&st.c==='g'; var c=lo?'p':st.c;
+    var mf=filt==='all'||c===filt;
+    var qf=!q||p.name.toLowerCase().includes(q.toLowerCase())||(p.barcode||'').includes(q)||(p.brand||'').toLowerCase().includes(q.toLowerCase());
+    return mf&&qf;
+  }).sort(function(a,b){return getStatus(a.expiry).d-getStatus(b.expiry).d;});
+  document.getElementById('inv-cards').innerHTML=list.length?list.map(makeCard).join(''):'<div class="empty"><div class="ei">📭</div><div class="et">Nothing found</div><div class="es">Try a different search or filter.</div></div>';
+}
+function setFilt(f,btn){
+  filt=f;
+  document.querySelectorAll('.fb').forEach(function(b){b.classList.remove('on');});
+  btn.classList.add('on'); renderInv();
 }
 
-window.setFilter=function(f,btn){
-  currentFilter=f;
-  document.querySelectorAll('.fb').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active'); renderInv();
-};
-
-// ── ANALYTICS ──
+// ════════════════════════════════════════
+// ANALYTICS
+// ════════════════════════════════════════
 function renderAnalytics(){
-  const exp=products.filter(p=>getStatus(p.expiry).s==='ex');
-  const loss=exp.reduce((s,p)=>s+(p.qty*(p.price||30)),0);
-  document.getElementById('a-loss').textContent=`₹${loss.toLocaleString('en-IN')}`;
-  document.getElementById('a-loss-s').textContent=`from ${exp.length} expired medicine${exp.length!==1?'s':''}`;
-  const sc=['ex','cr','wa','sa'],co={ex:'var(--ex)',cr:'var(--cr)',wa:'var(--wa)',sa:'var(--sa)'},lb={ex:'⛔ Expired',cr:'🔴 Critical',wa:'🟡 Warning',sa:'✅ Safe'};
-  document.getElementById('a-sum').innerHTML=sc.map(s=>{const c=products.filter(p=>getStatus(p.expiry).s===s).length;return`<div class="ti"><div class="tr" style="background:${co[s]}22;color:${co[s]}">${c}</div><div class="tn">${lb[s]}</div></div>`;}).join('');
-  const low=products.filter(p=>isLow(p));
-  document.getElementById('a-low').innerHTML=low.length?low.slice(0,6).map(p=>`<div class="ti"><div class="tr" style="background:var(--lo-bg);color:var(--lo)">${p.qty}</div><div class="tn">${p.name}</div></div>`).join(''):'<div style="font-size:11px;color:var(--g4);">No low stock ✅</div>';
-  const sh={};products.forEach(p=>{if(p.shelf&&p.shelf!=='—')sh[p.shelf]=(sh[p.shelf]||0)+1;});
-  const se=Object.entries(sh).sort((a,b)=>b[1]-a[1]),mx=se[0]?.[1]||1;
-  document.getElementById('a-shelf').innerHTML=se.slice(0,6).map(([s,c])=>`<div><div class="ti"><div class="tr">📍</div><div class="tn">Shelf ${s}</div><div class="tc2">${c}</div></div><div class="pb"><div class="pf" style="width:${(c/mx)*100}%"></div></div></div>`).join('')||'<div style="font-size:11px;color:var(--g4);">No shelf data</div>';
-  const cats={};products.forEach(p=>{if(p.category)cats[p.category]=(cats[p.category]||0)+1;});
-  const ce=Object.entries(cats).sort((a,b)=>b[1]-a[1]),mc=ce[0]?.[1]||1;
-  document.getElementById('a-cat').innerHTML=ce.slice(0,6).map(([c,n])=>`<div><div class="ti"><div class="tr">💊</div><div class="tn">${c}</div><div class="tc2">${n}</div></div><div class="pb"><div class="pf" style="width:${(n/mc)*100}%"></div></div></div>`).join('')||'<div style="font-size:11px;color:var(--g4);">No data</div>';
-  document.getElementById('a-exp').innerHTML=exp.length?exp.slice(0,6).map(p=>`<div class="ti"><div class="tr" style="background:var(--ex-bg);color:var(--ex)">⛔</div><div class="tn">${p.name}</div><div class="tc2">${p.qty}u</div></div>`).join(''):'<div style="font-size:11px;color:var(--g4);">No expired ✅</div>';
+  var exp=prods.filter(function(p){return getStatus(p.expiry).c==='r';});
+  var loss=exp.reduce(function(s,p){return s+(p.qty*(p.price||30));},0);
+  document.getElementById('a-loss').textContent='₹'+loss.toLocaleString('en-IN');
+  document.getElementById('a-loss-s').textContent=exp.length+' expired medicines';
+  var sc={r:'⛔ Expired',o:'🔴 Critical',y:'🟡 Warning',g:'✅ Safe'};
+  var co={r:'var(--red)',o:'var(--orange)',y:'var(--yellow)',g:'var(--green)'};
+  document.getElementById('a-sum').innerHTML=Object.keys(sc).map(function(k){
+    var n=prods.filter(function(p){return getStatus(p.expiry).c===k;}).length;
+    return '<div class="ai"><div class="an" style="background:'+co[k]+'22;color:'+co[k]+'">'+n+'</div><div class="al">'+sc[k]+'</div></div>';
+  }).join('');
+  var low=prods.filter(function(p){return isLow(p);});
+  document.getElementById('a-low').innerHTML=low.length?low.slice(0,6).map(function(p){
+    return '<div class="ai"><div class="an" style="background:var(--purple2);color:var(--purple)">'+p.qty+'</div><div class="al">'+p.name+'</div></div>';
+  }).join(''):'<div style="font-size:10px;color:var(--g4)">No low stock ✅</div>';
+  var sh={};prods.forEach(function(p){if(p.shelf&&p.shelf!=='—')sh[p.shelf]=(sh[p.shelf]||0)+1;});
+  var se=Object.entries(sh).sort(function(a,b){return b[1]-a[1];});var mx=se[0]?se[0][1]:1;
+  document.getElementById('a-shelf').innerHTML=se.slice(0,5).map(function(e){
+    return '<div><div class="ai"><div class="an">📍</div><div class="al">'+e[0]+'</div><div class="av">'+e[1]+'</div></div><div class="abar-w"><div class="abar" style="width:'+(e[1]/mx*100)+'%"></div></div></div>';
+  }).join('')||'<div style="font-size:10px;color:var(--g4)">No shelf data</div>';
+  var cats={};prods.forEach(function(p){if(p.cat)cats[p.cat]=(cats[p.cat]||0)+1;});
+  var ce=Object.entries(cats).sort(function(a,b){return b[1]-a[1];});var mc2=ce[0]?ce[0][1]:1;
+  document.getElementById('a-cat').innerHTML=ce.slice(0,5).map(function(e){
+    return '<div><div class="ai"><div class="an">💊</div><div class="al">'+e[0]+'</div><div class="av">'+e[1]+'</div></div><div class="abar-w"><div class="abar" style="width:'+(e[1]/mc2*100)+'%"></div></div></div>';
+  }).join('')||'<div style="font-size:10px;color:var(--g4)">No data</div>';
+  document.getElementById('a-exp').innerHTML=exp.length?exp.slice(0,5).map(function(p){
+    return '<div class="ai"><div class="an" style="background:var(--red2);color:var(--red)">⛔</div><div class="al">'+p.name+'</div><div class="av">'+p.qty+'u</div></div>';
+  }).join(''):'<div style="font-size:10px;color:var(--g4)">None ✅</div>';
 }
 
-// ── NOTIFICATIONS ──
+// ════════════════════════════════════════
+// NOTIFICATIONS
+// ════════════════════════════════════════
 function renderNotifs(){
-  const alerts=[];
-  products.forEach(p=>{
-    const st=getStatus(p.expiry);
-    if(st.s==='ex') alerts.push({t:'ex',title:`⛔ ${p.name} has expired`,sub:`${st.label} · Shelf ${p.shelf||'—'} · ${p.qty} units left`});
-    else if(st.s==='cr') alerts.push({t:'cr',title:`🔴 ${p.name} expiring soon`,sub:`${st.label} · Shelf ${p.shelf||'—'}`});
-    else if(st.s==='wa') alerts.push({t:'wa',title:`🟡 ${p.name} — expiry approaching`,sub:`${st.label}`});
-    if(isLow(p)) alerts.push({t:'lo',title:`📉 ${p.name} — low stock`,sub:`Only ${p.qty} units remaining`});
+  var alerts=[];
+  prods.forEach(function(p){
+    var st=getStatus(p.expiry);
+    if(st.c==='r')alerts.push({c:'r',t:'⛔ '+p.name+' EXPIRED',s:st.lbl+' · '+p.qty+' units'});
+    else if(st.c==='o')alerts.push({c:'o',t:'🔴 '+p.name,s:st.lbl});
+    else if(st.c==='y')alerts.push({c:'y',t:'🟡 '+p.name,s:st.lbl});
+    if(isLow(p))alerts.push({c:'p',t:'📉 '+p.name+' — Low stock',s:'Only '+p.qty+' units'});
   });
-  document.getElementById('nbdg').textContent=alerts.length;
-  document.getElementById('np-list').innerHTML=alerts.length?alerts.map(a=>`<div class="ni2 ${a.t}"><div class="ni2-t">${a.title}</div><div class="ni2-s">${a.sub}</div></div>`).join(''):'<div style="text-align:center;padding:28px;color:var(--g4);font-size:12px;">No alerts 🎉</div>';
+  document.getElementById('nc').textContent=alerts.length;
+  document.getElementById('nl').innerHTML=alerts.length?alerts.map(function(a){
+    return '<div class="ni-item '+a.c+'"><div class="nit">'+a.t+'</div><div class="nis">'+a.s+'</div></div>';
+  }).join(''):'<div style="text-align:center;padding:28px;color:var(--g4);font-size:11px">No alerts 🎉</div>';
 }
+function toggleNotif(){nOpen=!nOpen;document.getElementById('np').classList.toggle('on',nOpen);}
 
-window.toggleNotif=function(){ notifOpen=!notifOpen; document.getElementById('np').classList.toggle('open',notifOpen); };
+// ════════════════════════════════════════
+// SCANNER — ZXing (most reliable mobile)
+// ════════════════════════════════════════
+function toggleScan(){scanning?stopScan():startScan();}
 
-// ── SELL MODAL ──
-window.openSell=function(key){
-  const p=products.find(x=>x._key===key); if(!p) return;
-  currentSellId=key;
-  const st=getStatus(p.expiry);
-  document.getElementById('sell-name').textContent=p.name;
-  document.getElementById('sell-meta').textContent=`${p.brand||''} · ${p.category||''} · Barcode: ${p.barcode||'—'} · Expiry: ${fmtExpiry(p.expiry)}`;
-  document.getElementById('sell-sv').textContent=p.qty+' units';
-  document.getElementById('sell-q').value='';
-  document.getElementById('sell-ex-w').style.display=st.s==='ex'?'block':'none';
-  document.getElementById('sell-cr-w').style.display=st.s==='cr'?'block':'none';
-  document.getElementById('sell-mo').classList.add('open');
-  setTimeout(()=>document.getElementById('sell-q').focus(),200);
-};
+function startScan(){
+  if(typeof ZXing==='undefined'){
+    toast('Scanner library not loaded. Check internet connection.','err');
+    return;
+  }
+  var v=document.getElementById('vid');
+  var sb=document.getElementById('scan-btn');
+  var ph=document.getElementById('scan-ph');
+  var ov=document.getElementById('scan-ov');
+  var ss=document.getElementById('scan-status');
 
-window.closeSell=function(){ document.getElementById('sell-mo').classList.remove('open'); currentSellId=null; };
+  v.style.display='block';
+  ph.style.display='none';
+  ov.style.display='flex';
+  ss.style.display='block';
+  ss.textContent='Initializing camera...';
+  sb.textContent='⏹ Stop Scanner';
+  scanning=true;
 
-window.confirmSale=async function(){
-  const qty=parseInt(document.getElementById('sell-q').value);
-  if(!qty||qty<1){showToast('Enter a valid quantity','err');return;}
-  const p=products.find(x=>x._key===currentSellId); if(!p) return;
-  if(qty>p.qty){showToast(`Only ${p.qty} units in stock!`,'err');return;}
-  const newQty=p.qty-qty;
-  await db.ref(`medikart/products/${currentSellId}`).update({qty:newQty});
-  window.closeSell();
-  showToast(`✅ Sold ${qty} unit${qty!==1?'s':''} of ${p.name}. ${newQty} remaining`,'ok');
-  if(newQty===0) setTimeout(()=>showToast(`📦 ${p.name} is OUT OF STOCK`,'wn'),700);
-  else if(newQty<=settings.lowThresh) setTimeout(()=>showToast(`📉 ${p.name} running LOW — ${newQty} left`,'wn'),700);
-};
+  // Using ZXing — fires callback every time it sees a barcode
+  // We collect readings for 1.5 seconds and take majority vote
+  zxReader=new ZXing.BrowserMultiFormatReader();
+  var hits={}, hitTimer=null;
 
-// ── DELETE ──
-window.deleteProduct=async function(key,name){
-  if(!confirm(`Remove "${name}" from inventory? This cannot be undone.`)) return;
-  await db.ref(`medikart/products/${key}`).remove();
-  showToast(`🗑️ ${name} removed`,'ok');
-};
-
-// ── LOOKUP ──
-function lookupDB(bc){ return MEDICINE_DB[bc]||null; }
-async function lookupAPI(bc){
-  try{
-    const r=await fetch(`https://world.openfoodfacts.org/api/v0/product/${bc}.json`);
-    const d=await r.json();
-    if(d.status===1&&d.product?.product_name) return {name:d.product.product_name,brand:d.product.brands||'',category:'General',form:'',strength:''};
-  }catch(e){}
-  return null;
-}
-
-// ── SCANNER ──
-window.toggleScanner=function(){ scanActive?stopScanner():startScanner(); };
-
-function startScanner(){
-  navigator.mediaDevices.getUserMedia({
-    video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} }
-  }).then(stream=>{
-    scanStream=stream;
-    const v=document.getElementById('sv');
-    v.srcObject=stream;
-    v.style.display='block';
-    document.getElementById('scanner-ph').style.display='none';
-    document.getElementById('scanner-ov').style.display='flex';
-    document.getElementById('scan-btn').textContent='⏹ Stop Scanner';
-    scanActive=true;
-
-    Quagga.init({
-      inputStream:{
-        type:'LiveStream',
-        target:v,
-        constraints:{ facingMode:{ideal:'environment'} }
-      },
-      decoder:{
-        readers:['ean_reader','ean_8_reader'],
-        debug:{ drawBoundingBox:false, showFrequency:false, drawScanline:false, showPattern:false }
-      },
-      locate:true,
-      numOfWorkers:0,
-      frequency:10
-    }, function(err){
-      if(err){ showToast('Scanner error: '+err,'err'); stopScanner(); return; }
-      Quagga.start();
-    });
-
-    Quagga.onDetected(async function(result){
-      if(scanCooldown) return;
-      var code = result.codeResult.code;
-      if(!code || code.length < 8) return;
-
-      scanCooldown = true;
-      setTimeout(function(){ scanCooldown=false; }, 5000);
-      stopScanner();
-
-      document.getElementById('scan-bc-val').value = code;
-      document.getElementById('scan-bc-display').textContent = code;
-      document.getElementById('scan-detected').style.display = 'block';
-      document.getElementById('scan-fetched').style.display = 'none';
-      document.getElementById('scan-nf').style.display = 'none';
-      document.getElementById('scan-name').value = '';
-      showToast('📷 Barcode: '+code, 'inf');
-
-      var found = lookupDB(code);
-      if(!found) found = await lookupAPI(code);
-      if(found){
-        document.getElementById('scan-pname').textContent = found.name;
-        document.getElementById('scan-pbrand').textContent = [found.brand,found.category,found.form,found.strength].filter(Boolean).join(' · ');
-        document.getElementById('scan-fetched').style.display = 'block';
-        document.getElementById('scan-name').value = found.name;
-        document.getElementById('scan-brand-val').value = found.brand||'';
-        document.getElementById('scan-cat-val').value = found.category||'';
-        showToast('✅ Found: '+found.name, 'ok');
-      } else {
-        document.getElementById('scan-nf').style.display = 'block';
-        showToast('Not in database — enter name manually','wn');
+  function startHitTimer(){
+    if(hitTimer)return;
+    hitTimer=setTimeout(function(){
+      // Pick the most seen barcode
+      var best=null, bestN=0;
+      Object.keys(hits).forEach(function(k){if(hits[k]>bestN){bestN=hits[k];best=k;}});
+      hits={}; hitTimer=null;
+      if(best&&bestN>=2){
+        // Confirmed with 2+ reads
+        onScan(best);
       }
-    });
-  }).catch(function(e){
-    showToast('Camera not available: '+e.message,'err');
+    },1500);
+  }
+
+  zxReader.decodeFromConstraints(
+    {video:{facingMode:'environment'}},
+    'vid',
+    function(result, err){
+      if(!result)return;
+      if(cooldown)return;
+      var code=result.getText();
+      if(!code||code.length<8)return;
+      // Accumulate hits
+      hits[code]=(hits[code]||0)+1;
+      ss.textContent='Reading... '+code.slice(-6)+' ('+hits[code]+'/2)';
+      startHitTimer();
+      // If same code seen 2+ times, confirm immediately without waiting for timer
+      if(hits[code]>=2&&!cooldown){
+        if(hitTimer){clearTimeout(hitTimer);hitTimer=null;}
+        hits={}; onScan(code);
+      }
+    }
+  ).catch(function(e){
+    toast('Camera error: '+e.message,'err');
+    stopScan();
   });
 }
 
-function stopScanner(){
-  try{ Quagga.stop(); }catch(e){}
-  if(scanStream){ scanStream.getTracks().forEach(function(t){ t.stop(); }); scanStream=null; }
-  var v=document.getElementById('sv');
-  v.srcObject=null;
-  v.style.display='none';
-  document.getElementById('scanner-ph').style.display='flex';
-  document.getElementById('scanner-ov').style.display='none';
+async function onScan(code){
+  cooldown=true;
+  setTimeout(function(){cooldown=false;},5000);
+  stopScan();
+  document.getElementById('s-bc').value=code;
+  document.getElementById('bc-disp').textContent=code;
+  document.getElementById('scan-result').style.display='block';
+  document.getElementById('fetched-bx').style.display='none';
+  document.getElementById('nf-bx').style.display='none';
+  document.getElementById('s-name').value='';
+  toast('📷 Barcode: '+code,'info');
+  var found=lookupDB(code);
+  if(!found)found=await lookupAPI(code);
+  if(found){
+    document.getElementById('s-name').value=found.name;
+    document.getElementById('f-name').textContent=found.name;
+    document.getElementById('f-sub').textContent=[found.brand,found.cat,found.form].filter(Boolean).join(' · ');
+    document.getElementById('fetched-bx').style.display='block';
+    document.getElementById('s-brand').value=found.brand||'';
+    document.getElementById('s-cat').value=found.cat||'';
+    toast('✅ Found: '+found.name,'ok');
+  } else {
+    document.getElementById('nf-bx').style.display='block';
+    toast('Not in database — enter name','warn');
+  }
+}
+
+function stopScan(){
+  try{if(zxReader){zxReader.reset();zxReader=null;}}catch(e){}
+  if(scanStream){scanStream.getTracks().forEach(function(t){t.stop();});scanStream=null;}
+  var v=document.getElementById('vid');
+  v.pause(); v.srcObject=null; v.style.display='none';
+  document.getElementById('scan-ph').style.display='flex';
+  document.getElementById('scan-ov').style.display='none';
+  document.getElementById('scan-status').style.display='none';
   document.getElementById('scan-btn').textContent='▶ Start Scanner';
-  scanActive=false;
+  scanning=false;
 }
 
-// ── ADD FROM SCAN ──
-window.addFromScan=async function(){
-  const name=document.getElementById('scan-name').value.trim();
-  const em=document.getElementById('scan-exp-m').value;
-  const ey=document.getElementById('scan-exp-y').value;
-  const expiry=(em&&ey)?`${ey}-${em}`:'';
-  const qty=parseInt(document.getElementById('scan-qty').value)||0;
-  if(!name){showToast('Enter medicine name','err');return;}
-  if(!expiry){showToast('Select expiry month and year','err');return;}
-  if(qty<1){showToast('Enter a valid quantity','err');return;}
-  const bc=document.getElementById('scan-bc-val').value;
-  const newRef=db.ref("medikart/products").push();
-  await newRef.set({
-    name, expiry, barcode:bc||'—',
-    brand:document.getElementById('scan-brand-val').value||'',
-    category:document.getElementById('scan-cat-val').value||'',
-    shelf:document.getElementById('scan-shelf').value.trim()||'—',
-    qty, price:parseInt(document.getElementById('scan-price').value)||30,
-    addedAt:Date.now()
-  });
-  showToast(`✅ ${name} registered`,'ok');
-  document.getElementById('scan-detected').style.display='none';
-  document.getElementById('scan-bc-display').textContent='—';
-  ['scan-name','scan-qty','scan-shelf','scan-price'].forEach(i=>document.getElementById(i).value='');
-  document.getElementById('scan-exp-m').value='';
-  document.getElementById('scan-exp-y').value='';
-};
+// ════════════════════════════════════════
+// ADD — SCAN
+// ════════════════════════════════════════
+async function addScanned(){
+  var name=document.getElementById('s-name').value.trim();
+  var em=document.getElementById('s-em').value;
+  var ey=document.getElementById('s-ey').value;
+  var qty=parseInt(document.getElementById('s-qty').value)||0;
+  if(!name)return toast('Enter medicine name','err');
+  if(!em||!ey)return toast('Select expiry date','err');
+  if(qty<1)return toast('Enter quantity','err');
+  await pRef.push().set({name:name,expiry:ey+'-'+em,barcode:document.getElementById('s-bc').value||'—',brand:document.getElementById('s-brand').value||'',cat:document.getElementById('s-cat').value||'',shelf:document.getElementById('s-shelf').value.trim()||'—',qty:qty,price:parseInt(document.getElementById('s-price').value)||30,addedAt:Date.now()});
+  toast('✅ '+name+' registered!','ok');
+  document.getElementById('scan-result').style.display='none';
+  document.getElementById('bc-disp').textContent='—';
+  ['s-name','s-qty','s-shelf','s-price'].forEach(function(i){document.getElementById(i).value='';});
+  document.getElementById('s-em').value=''; document.getElementById('s-ey').value='';
+}
 
-// ── FETCH MANUAL ──
-window.fetchManual=async function(){
-  const bc=document.getElementById('m-bc').value.trim();
-  if(!bc){showToast('Enter a barcode first','err');return;}
-  const btn=document.getElementById('fetch-btn');
+// ════════════════════════════════════════
+// ADD — MANUAL
+// ════════════════════════════════════════
+async function fetchBC(){
+  var bc=document.getElementById('m-bc').value.trim();
+  if(!bc)return toast('Enter barcode first','err');
+  var btn=document.getElementById('m-fetch-btn');
   btn.innerHTML='<span class="spin"></span>'; btn.disabled=true;
-  document.getElementById('m-fetched').style.display='none';
-  document.getElementById('m-nf').style.display='none';
-  let found=lookupDB(bc);
-  if(!found) found=await lookupAPI(bc);
+  document.getElementById('mf-bx').style.display='none';
+  document.getElementById('mnf-bx').style.display='none';
+  var found=lookupDB(bc);
+  if(!found)found=await lookupAPI(bc);
   btn.innerHTML='Fetch'; btn.disabled=false;
   if(found){
     document.getElementById('m-name').value=found.name;
-    document.getElementById('m-pname').textContent=found.name;
-    document.getElementById('m-pbrand').textContent=[found.brand,found.category,found.strength].filter(Boolean).join(' · ');
-    document.getElementById('m-fetched').style.display='block';
-    showToast('✅ Medicine found!','ok');
+    document.getElementById('mf-name').textContent=found.name;
+    document.getElementById('mf-sub').textContent=[found.brand,found.cat].filter(Boolean).join(' · ');
+    document.getElementById('mf-bx').style.display='block';
+    toast('✅ Found!','ok');
   } else {
-    document.getElementById('m-nf').style.display='block';
-    showToast('Not found — enter name manually','wn');
+    document.getElementById('mnf-bx').style.display='block';
+    toast('Not found — enter manually','warn');
   }
-};
+}
+async function addManual(){
+  var name=document.getElementById('m-name').value.trim();
+  var em=document.getElementById('m-em').value;
+  var ey=document.getElementById('m-ey').value;
+  var qty=parseInt(document.getElementById('m-qty').value)||0;
+  if(!name)return toast('Enter medicine name','err');
+  if(!em||!ey)return toast('Select expiry date','err');
+  if(qty<1)return toast('Enter quantity','err');
+  await pRef.push().set({name:name,expiry:ey+'-'+em,barcode:document.getElementById('m-bc').value.trim()||'—',brand:'',cat:'',shelf:document.getElementById('m-shelf').value.trim()||'—',qty:qty,price:parseInt(document.getElementById('m-price').value)||30,addedAt:Date.now()});
+  toast('✅ '+name+' registered!','ok');
+  ['m-name','m-bc','m-qty','m-shelf','m-price'].forEach(function(i){document.getElementById(i).value='';});
+  document.getElementById('m-em').value=''; document.getElementById('m-ey').value='';
+  document.getElementById('mf-bx').style.display='none';
+  document.getElementById('mnf-bx').style.display='none';
+}
 
-// ── ADD MANUAL ──
-window.addManual=async function(){
-  const name=document.getElementById('m-name').value.trim();
-  const em=document.getElementById('m-exp-m').value;
-  const ey=document.getElementById('m-exp-y').value;
-  const expiry=(em&&ey)?`${ey}-${em}`:'';
-  const qty=parseInt(document.getElementById('m-qty').value)||0;
-  if(!name){showToast('Enter medicine name','err');return;}
-  if(!expiry){showToast('Select expiry month and year','err');return;}
-  if(qty<1){showToast('Enter a valid quantity','err');return;}
-  const newRef=db.ref("medikart/products").push();
-  await newRef.set({
-    name, expiry,
-    barcode:document.getElementById('m-bc').value.trim()||'—',
-    brand:'', category:'',
-    shelf:document.getElementById('m-shelf').value.trim()||'—',
-    qty, price:parseInt(document.getElementById('m-price').value)||30,
-    addedAt:Date.now()
-  });
-  showToast(`✅ ${name} registered`,'ok');
-  ['m-name','m-bc','m-qty','m-shelf','m-price'].forEach(i=>document.getElementById(i).value='');
-  document.getElementById('m-exp-m').value='';
-  document.getElementById('m-exp-y').value='';
-  document.getElementById('m-fetched').style.display='none';
-  document.getElementById('m-nf').style.display='none';
-};
+// ════════════════════════════════════════
+// DELETE
+// ════════════════════════════════════════
+function delProd(key,name){
+  if(!confirm('Remove "'+name+'"?'))return;
+  pRef.child(key).remove();
+  toast('Removed: '+name,'ok');
+}
 
-// ── FLASK POLLING ──
-function startPolling(){
-  if(pollInterval) clearInterval(pollInterval);
-  if(!settings.flaskURL) return;
-  pollInterval=setInterval(async()=>{
+// ════════════════════════════════════════
+// SELL MODAL
+// ════════════════════════════════════════
+function openSell(key){
+  var p=prods.find(function(x){return x._k===key;});
+  if(!p)return;
+  sellKey=key;
+  var st=getStatus(p.expiry);
+  document.getElementById('sell-n').textContent=p.name;
+  document.getElementById('sell-m').textContent=(p.brand||'')+(p.cat?' · '+p.cat:'')+' · Exp: '+fmtExp(p.expiry);
+  document.getElementById('sell-stk').textContent=p.qty+' units';
+  document.getElementById('sell-qty').value='';
+  document.getElementById('sell-ex').style.display=st.c==='r'?'block':'none';
+  document.getElementById('sell-cr').style.display=st.c==='o'?'block':'none';
+  document.getElementById('sell-modal').classList.add('on');
+  setTimeout(function(){document.getElementById('sell-qty').focus();},150);
+}
+function closeSell(){document.getElementById('sell-modal').classList.remove('on');sellKey=null;}
+async function confirmSale(){
+  var qty=parseInt(document.getElementById('sell-qty').value);
+  if(!qty||qty<1)return toast('Enter valid quantity','err');
+  var p=prods.find(function(x){return x._k===sellKey;});
+  if(!p)return;
+  if(qty>p.qty)return toast('Only '+p.qty+' in stock!','err');
+  var nq=p.qty-qty;
+  await pRef.child(sellKey).update({qty:nq});
+  closeSell();
+  toast('✅ Sold '+qty+' × '+p.name+'. '+nq+' left.','ok');
+  if(nq===0)setTimeout(function(){toast('📦 '+p.name+' OUT OF STOCK','warn');},700);
+  else if(nq<=CFG.low)setTimeout(function(){toast('📉 '+p.name+' low ('+nq+' left)','warn');},700);
+}
+
+// ════════════════════════════════════════
+// FLASK / ESP32
+// ════════════════════════════════════════
+function startPoll(){
+  if(pollTmr)clearInterval(pollTmr);
+  if(!CFG.flask)return;
+  pollTmr=setInterval(async function(){
     try{
-      const r=await fetch(settings.flaskURL+'/latest-scan',{signal:AbortSignal.timeout(2500)});
-      const d=await r.json();
-      updateConn(true);
-      if(d.barcode&&d.barcode!==lastPollBC){
-        lastPollBC=d.barcode;
-        handleESP(d.barcode);
+      var r=await fetch(CFG.flask+'/latest-scan',{signal:AbortSignal.timeout(2500)});
+      var d=await r.json();
+      document.getElementById('esp-dot').className='dot ok';
+      document.getElementById('esp-txt').textContent='ESP32 ✓';
+      document.getElementById('fl-dot').className='dot ok';
+      document.getElementById('fl-txt').textContent='Connected ✓';
+      if(d.barcode&&d.barcode!==lastBC){
+        lastBC=d.barcode;
+        var bar=document.getElementById('esp-bar');
+        document.getElementById('esp-bar-txt').textContent='📡 ESP32 scanned: '+d.barcode;
+        bar.classList.add('on'); setTimeout(function(){bar.classList.remove('on');},4000);
+        var p=prods.find(function(x){return x.barcode===d.barcode;});
+        if(p){openSell(p._k);toast('📡 ESP32: '+p.name,'info');}
+        else{toast('📡 '+d.barcode+' not registered','warn');}
       }
-    }catch(e){ updateConn(false); }
+    }catch(e){
+      document.getElementById('esp-dot').className='dot';
+      document.getElementById('esp-txt').textContent='ESP32 Offline';
+    }
   },3000);
 }
-
-function handleESP(bc){
-  document.getElementById('scanbar').classList.add('on');
-  document.getElementById('scanbar-txt').textContent=`📡 ESP32 scanned: ${bc}`;
-  setTimeout(()=>document.getElementById('scanbar').classList.remove('on'),4000);
-  const p=products.find(x=>x.barcode===bc);
-  if(p){ window.openSell(p._key); showToast(`📡 ESP32: ${p.name}`,'inf'); }
-  else { showToast(`📡 Barcode ${bc} not registered. Register it first.`,'wn'); showPage('register'); document.getElementById('m-bc').value=bc; }
+function saveFlask(){
+  CFG.flask=document.getElementById('flask-in').value.trim();
+  localStorage.setItem('mk2-cfg',JSON.stringify(CFG));
+  startPoll(); toast('Flask URL saved','ok');
+}
+async function testFlask(){
+  var url=document.getElementById('flask-in').value.trim();
+  if(!url)return toast('Enter URL first','err');
+  try{await fetch(url+'/status',{signal:AbortSignal.timeout(3000)});toast('✅ Connected!','ok');}
+  catch(e){toast('Cannot reach Flask server','err');}
+}
+function saveCfg(){
+  CFG.low=parseInt(document.getElementById('low-in').value)||10;
+  CFG.days=parseInt(document.getElementById('warn-in').value)||30;
+  localStorage.setItem('mk2-cfg',JSON.stringify(CFG));
+  toast('Settings saved','ok'); renderAll();
+}
+function exportJ(){
+  var b=new Blob([JSON.stringify(prods,null,2)],{type:'application/json'});
+  var u=URL.createObjectURL(b),a=document.createElement('a');
+  a.href=u; a.download='medikart-'+new Date().toISOString().split('T')[0]+'.json'; a.click();
+  toast('Exported!','ok');
+}
+function clearAll(){
+  if(!confirm('Delete ALL medicines from Firebase? Cannot undo.'))return;
+  pRef.remove(); toast('Cleared','warn');
 }
 
-function updateConn(on){
-  document.getElementById('cdot').className='cdot '+(on?'on':'off');
-  document.getElementById('ctxt').textContent=on?'ESP32 Connected':'ESP32 Offline';
-  document.getElementById('flask-dot').className='cdot '+(on?'on':'off');
-  document.getElementById('flask-status').textContent=on?'Connected':'Not connected';
-}
-
-// ── SETTINGS ──
-window.saveFlaskURL=function(){
-  settings.flaskURL=document.getElementById('flask-url').value.trim();
-  localStorage.setItem('mk-settings',JSON.stringify(settings));
-  startPolling(); showToast('Flask URL saved','inf');
-};
-
-window.testFlask=async function(){
-  const url=document.getElementById('flask-url').value.trim();
-  if(!url){showToast('Enter URL first','err');return;}
-  try{
-    await fetch(url+'/status',{signal:AbortSignal.timeout(3000)});
-    updateConn(true); showToast('✅ Connected!','ok');
-  }catch(e){ updateConn(false); showToast('Cannot reach server','err'); }
-};
-
-window.saveSettingsBtn=function(){
-  settings.lowThresh=parseInt(document.getElementById('low-thresh').value)||10;
-  settings.expDays=parseInt(document.getElementById('exp-days').value)||30;
-  localStorage.setItem('mk-settings',JSON.stringify(settings));
-  showToast('Settings saved','ok'); renderAll();
-};
-
-window.exportData=function(){
-  const blob=new Blob([JSON.stringify(products,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url;
-  a.download=`medikart-${new Date().toISOString().split('T')[0]}.json`;
-  a.click(); showToast('Exported','ok');
-};
-
-window.clearAll=async function(){
-  if(!confirm('⚠️ Delete ALL medicines from Firebase? Cannot be undone.')) return;
-  await db.ref("medikart/products").remove();
-  showToast('All data cleared','wn');
-};
-
-// ── NAVIGATION ──
-const pgTitles={dashboard:'Dashboard',inventory:'Inventory',register:'Register Medicine',analytics:'Analytics',settings:'Settings'};
-window.showPage=function(name){
-  if(scanActive) stopScanner();
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
-  document.getElementById('page-'+name).classList.add('active');
-  const btn=document.querySelector(`.ni[onclick="showPage('${name}')"]`);
-  if(btn) btn.classList.add('active');
-  document.getElementById('page-title').textContent=pgTitles[name];
+// ════════════════════════════════════════
+// NAV
+// ════════════════════════════════════════
+var pgTitles={dashboard:'Dashboard',inventory:'Inventory',register:'Register Medicine',analytics:'Analytics',settings:'Settings'};
+function nav(page,btn){
+  if(scanning)stopScan();
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on');});
+  document.querySelectorAll('.nb').forEach(function(b){b.classList.remove('on');});
+  document.getElementById('pg-'+page).classList.add('on');
+  btn.classList.add('on');
+  document.getElementById('pg-title').textContent=pgTitles[page];
   renderAll();
-};
-
-window.switchTab=function(id,btn){
-  if(scanActive) stopScanner();
-  document.querySelectorAll('.tc').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById(id).classList.add('active'); btn.classList.add('active');
-};
-
-// ── TOAST ──
-function showToast(msg,type=''){
-  const c=document.getElementById('tc3');
-  const t=document.createElement('div');
-  t.className=`toast ${type}`; t.textContent=msg; c.appendChild(t);
-  setTimeout(()=>t.remove(),3500);
+}
+function swTab(id,btn){
+  if(scanning)stopScan();
+  document.querySelectorAll('.tp').forEach(function(t){t.classList.remove('on');});
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on');});
+  document.getElementById(id).classList.add('on'); btn.classList.add('on');
 }
 
-// ── RENDER ALL ──
-function renderAll(){ renderDash(); renderInv(); renderAnalytics(); }
-
-// ── INIT ──
-// Populate year dropdowns
-function fillYears(){
-  const yr=new Date().getFullYear();
-  ['scan-exp-y','m-exp-y'].forEach(id=>{
-    const sel=document.getElementById(id);
-    for(let y=yr;y<=yr+10;y++){
-      const o=document.createElement('option');
-      o.value=y; o.textContent=y; sel.appendChild(o);
-    }
-  });
+// ════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════
+function toast(msg,type){
+  var c=document.getElementById('toasts');
+  var t=document.createElement('div');
+  t.className='toast '+(type||''); t.textContent=msg; c.appendChild(t);
+  setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},3500);
 }
-fillYears();
 
-document.getElementById('cur-date').textContent=new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
-document.getElementById('flask-url').value=settings.flaskURL||'';
-document.getElementById('low-thresh').value=settings.lowThresh||10;
-document.getElementById('exp-days').value=settings.expDays||30;
-if(settings.flaskURL) startPolling();
+// ════════════════════════════════════════
+// RENDER ALL
+// ════════════════════════════════════════
+function renderAll(){renderDash();renderInv();renderAnalytics();}
 
+// ════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════
+// Fill year dropdowns
+var yr=new Date().getFullYear();
+['s-ey','m-ey'].forEach(function(id){
+  var s=document.getElementById(id);
+  for(var y=yr;y<=yr+10;y++){var o=document.createElement('option');o.value=y;o.textContent=y;s.appendChild(o);}
+});
+document.getElementById('today').textContent=new Date().toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+document.getElementById('flask-in').value=CFG.flask||'';
+document.getElementById('low-in').value=CFG.low;
+document.getElementById('warn-in').value=CFG.days;
+if(CFG.flask)startPoll();
 </script>
 </body>
 </html>
