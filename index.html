@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sentinel Auditor — MediKart</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -869,60 +869,33 @@ async function lookupAPI(bc){
 // ── SCANNER ──
 window.toggleScanner=function(){ scanActive?stopScanner():startScanner(); };
 
-function startScanner(){
-  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}})
-  .then(stream=>{
-    scanStream=stream;
-    const v=document.getElementById('sv');
-    v.srcObject=stream; v.style.display='block';
+let zxingReader=null;
+
+async function startScanner(){
+  try{
+    document.getElementById('sv').style.display='block';
     document.getElementById('scanner-ph').style.display='none';
     document.getElementById('scanner-ov').style.display='flex';
     document.getElementById('scan-btn').textContent='⏹ Stop Scanner';
     scanActive=true;
 
-    let lastCode='';
-    let streak=0;
-    const NEEDED=4;
+    zxingReader = new ZXing.BrowserMultiFormatReader();
+    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+    // Pick back camera on mobile
+    const deviceId = devices.length>1
+      ? devices.find(d=>d.label.toLowerCase().includes('back')||d.label.toLowerCase().includes('rear'))?.deviceId || devices[devices.length-1].deviceId
+      : devices[0]?.deviceId;
 
-    Quagga.init({
-      inputStream:{name:'Live',type:'LiveStream',target:v,constraints:{facingMode:'environment'}},
-      decoder:{readers:['ean_reader','ean_8_reader','code_128_reader','upc_reader'],multiple:false},
-      locate:true,
-      frequency:15
-    },err=>{
-      if(err){showToast('Camera error. Use manual tab.','err');stopScanner();return;}
-      Quagga.start();
-    });
-
-    Quagga.onDetected(async res=>{
+    await zxingReader.decodeFromVideoDevice(deviceId, 'sv', async (result, err)=>{
+      if(!result) return;
       if(scanCooldown) return;
-      const code=res.codeResult.code;
 
-      // Only accept EAN-13 or EAN-8 — Indian medicine barcodes
+      const code = result.getText();
+      // Only EAN-8 or EAN-13
       if(!/^\d{8}$|^\d{13}$/.test(code)) return;
 
-      // Confidence check — reject blurry reads
-      const errCodes=res.codeResult.decodedCodes.filter(c=>c.error!==undefined);
-      if(errCodes.length>0){
-        const avgErr=errCodes.reduce((s,c)=>s+c.error,0)/errCodes.length;
-        if(avgErr>0.25) return;
-      }
-
-      // Smart streak — same code builds up, different code resets
-      if(code===lastCode){
-        streak++;
-      } else {
-        lastCode=code;
-        streak=1;
-      }
-
-      document.getElementById('scan-btn').textContent=`🔄 Hold steady... (${streak}/${NEEDED})`;
-      if(streak<NEEDED) return;
-
-      // Confirmed!
-      streak=0; lastCode='';
       scanCooldown=true;
-      setTimeout(()=>scanCooldown=false,5000);
+      setTimeout(()=>scanCooldown=false, 5000);
       stopScanner();
 
       document.getElementById('scan-bc-val').value=code;
@@ -948,14 +921,18 @@ function startScanner(){
         showToast('Not in database — enter name manually','wn');
       }
     });
-  })
-  .catch(()=>showToast('Camera not available. Use manual tab.','err'));
+  }catch(e){
+    showToast('Camera error: '+e.message,'err');
+    stopScanner();
+  }
 }
 
 function stopScanner(){
-  try{Quagga.stop();}catch(e){}
+  try{ if(zxingReader){ zxingReader.reset(); zxingReader=null; } }catch(e){}
   if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}
-  document.getElementById('sv').style.display='none';
+  const v=document.getElementById('sv');
+  v.srcObject=null;
+  v.style.display='none';
   document.getElementById('scanner-ph').style.display='flex';
   document.getElementById('scanner-ov').style.display='none';
   document.getElementById('scan-btn').textContent='▶ Start Scanner';
