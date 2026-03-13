@@ -880,11 +880,15 @@ function startScanner(){
     document.getElementById('scan-btn').textContent='⏹ Stop Scanner';
     scanActive=true;
 
+    let lastCode='';
+    let streak=0;
+    const NEEDED=4;
+
     Quagga.init({
       inputStream:{name:'Live',type:'LiveStream',target:v,constraints:{facingMode:'environment'}},
       decoder:{readers:['ean_reader','ean_8_reader','code_128_reader','upc_reader'],multiple:false},
       locate:true,
-      frequency:20
+      frequency:15
     },err=>{
       if(err){showToast('Camera error. Use manual tab.','err');stopScanner();return;}
       Quagga.start();
@@ -894,17 +898,29 @@ function startScanner(){
       if(scanCooldown) return;
       const code=res.codeResult.code;
 
-      // Only accept EAN-13 (13 digits) or EAN-8 (8 digits) — Indian medicine barcodes
+      // Only accept EAN-13 or EAN-8 — Indian medicine barcodes
       if(!/^\d{8}$|^\d{13}$/.test(code)) return;
 
       // Confidence check — reject blurry reads
       const errCodes=res.codeResult.decodedCodes.filter(c=>c.error!==undefined);
       if(errCodes.length>0){
         const avgErr=errCodes.reduce((s,c)=>s+c.error,0)/errCodes.length;
-        if(avgErr>0.15) return;
+        if(avgErr>0.25) return;
       }
 
-      // Good read — accept immediately
+      // Smart streak — same code builds up, different code resets
+      if(code===lastCode){
+        streak++;
+      } else {
+        lastCode=code;
+        streak=1;
+      }
+
+      document.getElementById('scan-btn').textContent=`🔄 Hold steady... (${streak}/${NEEDED})`;
+      if(streak<NEEDED) return;
+
+      // Confirmed!
+      streak=0; lastCode='';
       scanCooldown=true;
       setTimeout(()=>scanCooldown=false,5000);
       stopScanner();
