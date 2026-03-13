@@ -880,47 +880,44 @@ async function startScanner(){
     scanActive=true;
 
     zxingReader = new ZXing.BrowserMultiFormatReader();
-    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-    // Pick back camera on mobile
-    const deviceId = devices.length>1
-      ? devices.find(d=>d.label.toLowerCase().includes('back')||d.label.toLowerCase().includes('rear'))?.deviceId || devices[devices.length-1].deviceId
-      : devices[0]?.deviceId;
 
-    await zxingReader.decodeFromVideoDevice(deviceId, 'sv', async (result, err)=>{
-      if(!result) return;
-      if(scanCooldown) return;
+    await zxingReader.decodeFromConstraints(
+      {video:{facingMode:'environment'}},
+      'sv',
+      async (result, err)=>{
+        if(!result) return;
+        if(scanCooldown) return;
+        const code = result.getText();
+        if(!/^\d{8}$|^\d{13}$/.test(code)) return;
 
-      const code = result.getText();
-      // Only EAN-8 or EAN-13
-      if(!/^\d{8}$|^\d{13}$/.test(code)) return;
+        scanCooldown=true;
+        setTimeout(()=>scanCooldown=false,5000);
+        stopScanner();
 
-      scanCooldown=true;
-      setTimeout(()=>scanCooldown=false, 5000);
-      stopScanner();
+        document.getElementById('scan-bc-val').value=code;
+        document.getElementById('scan-bc-display').textContent=code;
+        document.getElementById('scan-detected').style.display='block';
+        document.getElementById('scan-fetched').style.display='none';
+        document.getElementById('scan-nf').style.display='none';
+        document.getElementById('scan-name').value='';
+        showToast(`📷 Barcode: ${code}`,'inf');
 
-      document.getElementById('scan-bc-val').value=code;
-      document.getElementById('scan-bc-display').textContent=code;
-      document.getElementById('scan-detected').style.display='block';
-      document.getElementById('scan-fetched').style.display='none';
-      document.getElementById('scan-nf').style.display='none';
-      document.getElementById('scan-name').value='';
-      showToast(`📷 Barcode: ${code}`,'inf');
-
-      let found=lookupDB(code);
-      if(!found) found=await lookupAPI(code);
-      if(found){
-        document.getElementById('scan-pname').textContent=found.name;
-        document.getElementById('scan-pbrand').textContent=[found.brand,found.category,found.form,found.strength].filter(Boolean).join(' · ');
-        document.getElementById('scan-fetched').style.display='block';
-        document.getElementById('scan-name').value=found.name;
-        document.getElementById('scan-brand-val').value=found.brand||'';
-        document.getElementById('scan-cat-val').value=found.category||'';
-        showToast(`✅ Found: ${found.name}`,'ok');
-      } else {
-        document.getElementById('scan-nf').style.display='block';
-        showToast('Not in database — enter name manually','wn');
+        let found=lookupDB(code);
+        if(!found) found=await lookupAPI(code);
+        if(found){
+          document.getElementById('scan-pname').textContent=found.name;
+          document.getElementById('scan-pbrand').textContent=[found.brand,found.category,found.form,found.strength].filter(Boolean).join(' · ');
+          document.getElementById('scan-fetched').style.display='block';
+          document.getElementById('scan-name').value=found.name;
+          document.getElementById('scan-brand-val').value=found.brand||'';
+          document.getElementById('scan-cat-val').value=found.category||'';
+          showToast(`✅ Found: ${found.name}`,'ok');
+        } else {
+          document.getElementById('scan-nf').style.display='block';
+          showToast('Not in database — enter name manually','wn');
+        }
       }
-    });
+    );
   }catch(e){
     showToast('Camera error: '+e.message,'err');
     stopScanner();
